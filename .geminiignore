@@ -1,0 +1,12 @@
+# Exclude heavy directories and files to save tokens and prevent quota exhaustion
+agentic-calculator-core/
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.log
+.mypy_cache/
+.pytest_cache/
+node_modules/
+dist/
+build/

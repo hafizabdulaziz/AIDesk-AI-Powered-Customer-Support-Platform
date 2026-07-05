@@ -1,0 +1,14 @@
+# This policies file defines MCP servers for both Gemini CLI and Antigravity (AGY).
+
+[mcp.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+# GITHUB_PERSONAL_ACCESS_TOKEN must be set in your environment variables.
+
+[mcp.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "C:/Users/ABDUL AZIZ/OneDrive/Desktop/ai-customer-support-platform"]
+
+# [mcp.google-search]
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-google-search"]
