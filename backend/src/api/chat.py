@@ -4,9 +4,9 @@ from uuid import uuid4
 from datetime import datetime
 from typing import Optional
 
-from ..models.database import SessionLocal, User, Ticket, Message, TicketStatus
-from ..models.schemas import MessageCreate, MessageRead, TicketRead
-from ..services.ai_agent import ai_agent
+from models.database import SessionLocal, User, Ticket, Message, TicketStatus
+from models.schemas import MessageCreate, MessageRead, TicketRead
+from services.ai_agent import ai_agent
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -20,16 +20,38 @@ def get_db():
 
 @router.post("/message")
 async def send_message(message_in: MessageCreate, db: Session = Depends(get_db)):
-    # 1. Ensure the user exists (for MVP, we auto-create the user if not found)
-    # Note: In a real app, we'd use auth tokens
-    user = db.query(User).filter(User.id == message_in.ticket_id).first() # This is a placeholder; usually we'd have a user_id in the request
-    
-    # For simplicity in MVP: Let's assume ticket_id is provided and valid
-    ticket = db.query(Ticket).filter(Ticket.id == message_in.ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    # 1. Ensure the user exists. If not, create a new one.
+    user = db.query(User).filter(User.id == message_in.user_id).first()
+    if not user:
+        user = User(
+            id=message_in.user_id,
+            email=f"user_{message_in.user_id}@example.com", # In real app, email would be provided
+            created_at=datetime.utcnow(),
+            last_active=datetime.utcnow()
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
-    # 2. Save the User's message to DB
+    # 2. Handle Ticket: Use existing ticket_id or create a new one
+    ticket = None
+    if message_in.ticket_id:
+        ticket = db.query(Ticket).filter(Ticket.id == message_in.ticket_id).first()
+
+    if not ticket:
+        # Create a new ticket for this user
+        ticket = Ticket(
+            id=str(uuid4()),
+            user_id=user.id,
+            status=TicketStatus.OPEN,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(ticket)
+        db.commit()
+        db.refresh(ticket)
+
+    # 3. Save the User's message to DB
     user_msg = Message(
         id=str(uuid4()),
         ticket_id=ticket.id,
@@ -39,10 +61,10 @@ async def send_message(message_in: MessageCreate, db: Session = Depends(get_db))
     )
     db.add(user_msg)
 
-    # 3. Get AI Response
+    # 4. Get AI Response
     response_text, needs_handoff = ai_agent.generate_response(message_in.content)
 
-    # 4. Save AI's message to DB
+    # 5. Save AI's message to DB
     ai_msg = Message(
         id=str(uuid4()),
         ticket_id=ticket.id,
@@ -52,7 +74,7 @@ async def send_message(message_in: MessageCreate, db: Session = Depends(get_db))
     )
     db.add(ai_msg)
 
-    # 5. Update Ticket status if handoff is needed
+    # 6. Update Ticket status if handoff is needed
     if needs_handoff:
         ticket.status = TicketStatus.PENDING_HUMAN
         ticket.updated_at = datetime.utcnow()

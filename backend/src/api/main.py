@@ -1,17 +1,23 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-from .core.config import settings
-from .models.database import Base, engine
+from contextlib import asynccontextmanager
+from core.config import settings
+from models.database import Base, engine
 
-# Create database tables on startup
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Create tables
+    Base.metadata.create_all(bind=engine)
+    yield
+    # Shutdown: (Optional) Clean up resources here
 
-from .api import chat
+from api import chat
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI Customer Support Platform API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.include_router(chat.router)

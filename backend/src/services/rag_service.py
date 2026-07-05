@@ -1,5 +1,5 @@
 from typing import List, Dict
-from .vector_store import vector_store
+from services.vector_store import vector_store
 from .embeddings import EmbeddingService
 
 class RAGService:

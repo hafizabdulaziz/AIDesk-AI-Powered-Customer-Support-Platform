@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime
 import enum
-from .core.config import settings
+from core.config import settings
 
 # Base class for models
 Base = declarative_base()

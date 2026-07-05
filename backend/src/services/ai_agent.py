@@ -1,7 +1,7 @@
 from typing import Tuple, List, Dict
 from openai import OpenAI
-from .core.config import settings
-from .services.rag_service import RAGService
+from core.config import settings
+from services.rag_service import RAGService
 
 class AIAgent:
     def __init__(self):
@@ -21,20 +21,18 @@ class AIAgent:
             return "I'm sorry, I couldn't find any information regarding your query in my knowledge base. Would you like to speak with a human agent?", True
 
         # 2. Construct the System Prompt for Grounding
-        context_text = "
-".join([f"- {c['content']} (Source: {c['source']})" for c in context_chunks])
+        context_text = "\n".join([f"- {c['content']} (Source: {c['source']})" for c in context_chunks])
         
-        system_prompt = (
-            "You are a helpful and professional AI Customer Support Agent. "
-            "Your goal is to provide accurate answers based ONLY on the provided context. "
-            "If the answer is not contained within the context, politely inform the user "
-            "that you don't know and suggest escalating to a human agent. "
-            "Do not make up information. Be concise and friendly.
+        system_prompt = """
+You are a helpful and professional AI Customer Support Agent.
+Your goal is to provide accurate answers based ONLY on the provided context.
+If the answer is not contained within the context, politely inform the user
+that you don't know and suggest escalating to a human agent.
+Do not make up information. Be concise and friendly.
 
-"
-            f"Context:
-{context_text}"
-        )
+Context:
+{context_text}
+""".format(context_text=context_text)
 
         try:
             # 3. Call the LLM

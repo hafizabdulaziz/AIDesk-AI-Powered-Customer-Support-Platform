@@ -1,0 +1,33 @@
+[project]
+name = "ai-customer-support-backend"
+version = "0.1.0"
+description = "Backend services for the AI Customer Support Platform"
+authors = [
+    { name = "Hafiz Abdul Aziz", email = "abdulazizmemon888@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pydantic",
+    "pydantic-settings",
+    "langchain",
+    "langchain-openai",
+    "chromadb",
+    "openai",
+    "email-validator",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.18,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pytest>=9.1.0",
+]
+
+[tool.ruff]

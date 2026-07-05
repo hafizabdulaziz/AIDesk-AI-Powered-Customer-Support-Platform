@@ -2,7 +2,8 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
-from .models.database import TicketStatus, MessageSender
+from models.database import TicketStatus, MessageSender
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -30,9 +31,10 @@ class TicketRead(TicketBase):
 class MessageBase(BaseModel):
     content: str
 
-class MessageCreate(MessageBase):
-    ticket_id: UUID
-    sender: MessageSender
+class MessageCreate(BaseModel):
+    content: str
+    user_id: UUID
+    ticket_id: Optional[UUID] = None
 
 class MessageRead(MessageBase):
     id: UUID

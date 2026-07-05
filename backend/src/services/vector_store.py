@@ -1,5 +1,5 @@
 import chromadb
-from .core.config import settings
+from core.config import settings
 
 class VectorStoreManager:
     def __init__(self):
