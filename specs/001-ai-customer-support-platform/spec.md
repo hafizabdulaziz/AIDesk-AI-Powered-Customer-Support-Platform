@@ -62,8 +62,8 @@ As a customer, I want to be seamlessly transitioned to a human agent when the AI
 - **FR-003**: System MUST provide a mechanism for administrators to upload and manage (upload/delete) knowledge base sources.
 - **FR-004**: System MUST be able to identify when it cannot answer a query based on the knowledge base and trigger a handoff to a human agent.
 - **FR-005**: System MUST maintain a conversation history for each user session.
-- **FR-006**: System MUST [NEEDS CLARIFICATION: specify the primary interface for the AI agent - Web chat, WhatsApp, Slack, etc.?]
-- **FR-007**: System MUST [NEEDS CLARIFICATION: specify the data retention policy for conversation histories?]
+- **FR-006**: System MUST provide a Web Chat interface for users to interact with the AI agent.
+- **FR-007**: System MUST retain conversation histories for 90 days.
 
 ### Key Entities
 
