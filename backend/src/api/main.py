@@ -6,11 +6,16 @@ from .models.database import Base, engine
 # Create database tables on startup
 Base.metadata.create_all(bind=engine)
 
+from .api import chat
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI Customer Support Platform API",
     version="1.0.0"
 )
+
+app.include_router(chat.router)
+
 
 @app.get("/health")
 async def health_check():
