@@ -1,7 +1,11 @@
-from typing import Tuple, List, Dict
-from openai import OpenAI
+import logging
+from typing import Tuple, List, Dict, Any
+from openai import OpenAI, OpenAIError
 from core.config import settings
 from services.rag_service import RAGService
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 class AIAgent:
     def __init__(self):
@@ -9,54 +13,75 @@ class AIAgent:
         self.model = settings.LLM_MODEL
         self.rag_service = RAGService()
 
-    def generate_response(self, query: str) -> Tuple[str, bool]:
+    def generate_response(self, query: str, history: List[Dict[str, str]] = None) -> Tuple[str, bool]:
         """
-        Generates a grounded response based on the knowledge base.
+        Generates a grounded response based on the knowledge base and conversation history.
         Returns a tuple of (response_text, needs_handoff).
         """
+        if history is None:
+            history = []
+
         # 1. Retrieve relevant context from Knowledge Base
         context_chunks = self.rag_service.retrieve_relevant_chunks(query)
         
-        if not context_chunks:
-            return "I'm sorry, I couldn't find any information regarding your query in my knowledge base. Would you like to speak with a human agent?", True
+        # If no context is found, we can still let the AI try or trigger handoff immediately.
+        # For MVP, if no context is found, we'll tell the AI and let it decide or force handoff.
+        context_text = ""
+        if context_chunks:
+            context_text = "\n".join([f"- {c['content']} (Source: {c['source']})" for c in context_chunks])
+        else:
+            logger.info("No relevant context found for query: %s", query)
 
-        # 2. Construct the System Prompt for Grounding
-        context_text = "\n".join([f"- {c['content']} (Source: {c['source']})" for c in context_chunks])
-        
-        system_prompt = """
-You are a helpful and professional AI Customer Support Agent.
-Your goal is to provide accurate answers based ONLY on the provided context.
-If the answer is not contained within the context, politely inform the user
-that you don't know and suggest escalating to a human agent.
-Do not make up information. Be concise and friendly.
+        # 2. Construct the Strict System Prompt for Grounding
+        system_prompt = f"""
+You are a professional and empathetic AI Customer Support Agent.
+Your PRIMARY goal is to provide accurate answers based ONLY on the provided Context.
+
+RULES:
+1. Use ONLY the provided Context to answer. Do not use external knowledge.
+2. If the answer is NOT in the Context, politely state that you don't have that information and suggest speaking with a human agent.
+3. If you are unsure, do not guess. 
+4. Be concise, friendly, and professional.
+5. Maintain the tone of the company's brand.
 
 Context:
-{context_text}
-""".format(context_text=context_text)
+{context_text if context_text else "No relevant information found in the knowledge base."}
+"""
 
         try:
-            # 3. Call the LLM
+            # 3. Build the message payload with history
+            messages = [{"role": "system", "content": system_prompt}]
+            messages.extend(history) # Add past conversation
+            messages.append({"role": "user", "content": query})
+
+            # 4. Call the LLM
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": query}
-                ],
-                temperature=0
+                messages=messages,
+                temperature=0 # Keep it deterministic for grounding
             )
             
             answer = response.choices[0].message.content
             
-            # 4. Simple Handoff Detection
-            # If the AI admits it doesn't know, trigger handoff
-            handoff_keywords = ["don't know", "cannot find", "not in my knowledge base", "speak with a human"]
+            # 5. Refined Handoff Detection
+            # AI agent should naturally trigger this based on the system prompt if context is missing
+            handoff_keywords = [
+                "don't have that information", 
+                "don't know", 
+                "not in my knowledge base", 
+                "speak with a human", 
+                "escalate to a human"
+            ]
             needs_handoff = any(keyword in answer.lower() for keyword in handoff_keywords)
             
             return answer, needs_handoff
 
+        except OpenAIError as e:
+            logger.error(f"OpenAI API error in AIAgent: {str(e)}")
+            return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again in a moment or contact support.", True
         except Exception as e:
-            print(f"Error calling LLM: {e}")
-            return "I'm experiencing some technical difficulties. Please try again later or contact support.", True
+            logger.exception(f"Unexpected error in AIAgent: {str(e)}")
+            return "An unexpected error occurred. Please try again later.", True
 
 # Singleton instance
 ai_agent = AIAgent()
