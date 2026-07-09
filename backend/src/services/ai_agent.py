@@ -1,87 +1,119 @@
 import logging
+import os
+import google.generativeai as genai
 from typing import Tuple, List, Dict, Any
-from openai import OpenAI, OpenAIError
-from core.config import settings
 from services.rag_service import RAGService
+from core.config import settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
 class AIAgent:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.LLM_MODEL
+        # Check for Mock Mode
+        self.mock_mode = os.getenv("MOCK_MODE", "False").lower() == "true"
+        
+        if not self.mock_mode:
+            # Configure Gemini using the validated settings
+            genai.configure(api_key=settings.OPENAI_API_KEY)
+            
+            # Define the core persona as a system instruction
+            self.system_instruction = (
+                "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
+                "Your goal is to provide the best possible experience for the user. "
+                "CORE GUIDELINES:\n"
+                "1. BE HELPFUL: Your priority is to solve the user's problem. Use provided context if available, "
+                "otherwise use your general professional knowledge to provide the best guidance.\n"
+                "2. SOCIAL INTELLIGENCE: Handle greetings and introductions naturally. "
+                "You don't need a knowledge base to say 'Hello' or acknowledge a user's name.\n"
+                "3. ADVISORY ROLE: Guide users through typical processes (e.g., returns) supportively, "
+                "even if specific internal policies aren't listed.\n"
+                "4. HONESTY: If you lack specific personal details about the user, simply state that you don't have them yet.\n"
+                "5. TONE: Professional, friendly, and solution-oriented."
+            )
+            
+            # Initialize model with system instruction
+            try:
+                self.model = genai.GenerativeModel(
+                    model_name="gemini-3.5-flash",
+                    system_instruction=self.system_instruction
+                )
+                logger.info("AI Agent initialized successfully with gemini-3.5-flash")
+            except Exception as e:
+                logger.error(f"Failed to initialize GenerativeModel: {str(e)}")
+                self.model = None
+        else:
+            logger.info("AI Agent running in MOCK_MODE")
+            self.model = None
+
         self.rag_service = RAGService()
 
     def generate_response(self, query: str, history: List[Dict[str, str]] = None) -> Tuple[str, bool]:
         """
-        Generates a grounded response based on the knowledge base and conversation history.
-        Returns a tuple of (response_text, needs_handoff).
+        Generates a response. If MOCK_MODE is enabled, returns a simulated response.
         """
+        if self.mock_mode:
+            # Simulate responses for testing
+            if "hello" in query.lower() or "hi" in query.lower():
+                return "Hello! I am your AI assistant. How can I help you today?", False
+            if "return" in query.lower():
+                return "I understand you'd like to return your item. I can help with that. Could you please provide your order number?", False
+            if "human" in query.lower():
+                return "Understood. Transferring you to a human agent.", True
+            return "That's an interesting query. I'm here to help you resolve your issue promptly.", False
+
+        if self.model is None:
+            return "I'm sorry, the AI service is not properly initialized. Please contact support.", True
+
         if history is None:
             history = []
 
+        # ... (rest of the original generate_response logic)
         # 1. Retrieve relevant context from Knowledge Base
-        context_chunks = self.rag_service.retrieve_relevant_chunks(query)
-        
-        # If no context is found, we can still let the AI try or trigger handoff immediately.
-        # For MVP, if no context is found, we'll tell the AI and let it decide or force handoff.
-        context_text = ""
-        if context_chunks:
-            context_text = "\n".join([f"- {c['content']} (Source: {c['source']})" for c in context_chunks])
+        try:
+            context_chunks = self.rag_service.retrieve_relevant_chunks(query)
+            context_text = ""
+            if context_chunks:
+                context_list = [f"- {c['content']} (Source: {c['source']})" for c in context_chunks]
+                context_text = "\n".join(context_list)
+        except Exception as e:
+            logger.error(f"RAG retrieval error: {str(e)}")
+            context_text = ""
+
+        # 2. Construct the prompt with dynamic context
+        prompt_prefix = ""
+        if context_text:
+            prompt_prefix = f"Context for this query:\n{context_text}\n\n"
         else:
-            logger.info("No relevant context found for query: %s", query)
+            prompt_prefix = "No specific company documentation available. Use your professional expertise.\n\n"
 
-        # 2. Construct the Strict System Prompt for Grounding
-        system_prompt = f"""
-You are a professional and empathetic AI Customer Support Agent.
-Your PRIMARY goal is to provide accurate answers based ONLY on the provided Context.
-
-RULES:
-1. Use ONLY the provided Context to answer. Do not use external knowledge.
-2. If the answer is NOT in the Context, politely state that you don't have that information and suggest speaking with a human agent.
-3. If you are unsure, do not guess. 
-4. Be concise, friendly, and professional.
-5. Maintain the tone of the company's brand.
-
-Context:
-{context_text if context_text else "No relevant information found in the knowledge base."}
-"""
+        full_prompt = f"{prompt_prefix}User Query: {query}"
 
         try:
-            # 3. Build the message payload with history
-            messages = [{"role": "system", "content": system_prompt}]
-            messages.extend(history) # Add past conversation
-            messages.append({"role": "user", "content": query})
+            # 3. Format history for Gemini SDK
+            formatted_history = []
+            for msg in history:
+                # Gemini roles: 'user' and 'model'
+                role = "user" if msg["role"] == "user" else "model"
+                formatted_history.append({"role": role, "parts": [msg["content"]]})
 
-            # 4. Call the LLM
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0 # Keep it deterministic for grounding
-            )
+            # 4. Start chat and send message
+            chat = self.model.start_chat(history=formatted_history)
+            response = chat.send_message(full_prompt)
             
-            answer = response.choices[0].message.content
+            answer = response.text
             
-            # 5. Refined Handoff Detection
-            # AI agent should naturally trigger this based on the system prompt if context is missing
+            # 5. Intelligent Handoff Detection
             handoff_keywords = [
-                "don't have that information", 
-                "don't know", 
-                "not in my knowledge base", 
-                "speak with a human", 
-                "escalate to a human"
+                "transfer you to a human", 
+                "connect you with a representative", 
+                "speak with a human agent"
             ]
             needs_handoff = any(keyword in answer.lower() for keyword in handoff_keywords)
             
             return answer, needs_handoff
 
-        except OpenAIError as e:
-            logger.error(f"OpenAI API error in AIAgent: {str(e)}")
-            return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again in a moment or contact support.", True
         except Exception as e:
-            logger.exception(f"Unexpected error in AIAgent: {str(e)}")
-            return "An unexpected error occurred. Please try again later.", True
-
-# Singleton instance
-ai_agent = AIAgent()
+            # Log the full exception for diagnosis
+            logger.exception(f"Gemini API call failed: {str(e)}")
+            return f"Technical Error: {str(e)[:100]}... Please try again.", True

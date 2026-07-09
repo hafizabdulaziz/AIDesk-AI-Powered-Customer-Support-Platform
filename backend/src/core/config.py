@@ -1,24 +1,34 @@
+import os
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+# Base directory (backend/)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+ENV_FILE = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "sqlite:///./test.db"
+    # Database (always absolute path to backend/test.db)
+    DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'test.db'}"
     
     # AI / LLM
-    OPENAI_API_KEY: str = "your-api-key-here"
-    LLM_MODEL: str = "gpt-4o"
+    OPENAI_API_KEY: str 
+    # Use the 'models/' prefix as required by Google AI Studio
+    LLM_MODEL: str = "models/gemini-1.5-flash"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     
-    # Vector Store
-    CHROMA_DB_PATH: str = "./chroma_db"
+    # Vector Store (always absolute path to backend/chroma_db)
+    CHROMA_DB_PATH: str = str(BASE_DIR / "chroma_db")
     
     # App Settings
     APP_NAME: str = "AI Customer Support Platform"
     DEBUG: bool = True
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8")
 
-settings = Settings()
+@lru_cache()
+def get_settings():
+    return Settings()
 
-settings = Settings()
+settings = get_settings()

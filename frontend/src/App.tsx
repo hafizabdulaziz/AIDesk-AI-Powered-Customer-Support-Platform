@@ -17,11 +17,16 @@ interface ChatState {
   needs_handoff: boolean;
 }
 
+interface HistoryMessage {
+  id: string;
+  content: string;
+  sender: 'USER' | 'AI' | 'HUMAN_AGENT';
+  timestamp: string;
+}
+
 function App() {
-  // 1. Real State (No dummies!)
-  // In a real production app, user_id would come from Auth (JWT)
-  const [userId] = useState<string>(uuidv4());
-  const [ticketId, setTicketId] = useState<string | null>(null);
+  const [userId] = useState<string>(localStorage.getItem('support_user_id') || uuidv4());
+  const [ticketId, setTicketId] = useState<string | null>(localStorage.getItem('support_ticket_id'));
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,14 +34,42 @@ function App() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 2. Auto-scroll to bottom when messages change
+  // Initialize User ID in storage
+  useEffect(() => {
+    localStorage.setItem('support_user_id', userId);
+  }, [userId]);
+
+  // Load History on Mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!ticketId) return;
+      
+      try {
+        const response = await fetch(`http://localhost:8000/api/v1/chat/history/${ticketId}`);
+        if (response.ok) {
+          const data: HistoryMessage[] = await response.json();
+          const formattedMessages: Message[] = data.map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            sender: msg.sender === 'USER' ? 'USER' : 'AI',
+            timestamp: msg.timestamp,
+          }));
+          setMessages(formattedMessages);
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+      }
+    };
+
+    loadHistory();
+  }, [ticketId]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
 
-  // 3. API Integration
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
@@ -44,7 +77,6 @@ function App() {
     const userMessageContent = inputValue.trim();
     setInputValue('');
     
-    // Add user message to UI immediately
     const userMsg: Message = {
       id: uuidv4(),
       content: userMessageContent,
@@ -57,28 +89,26 @@ function App() {
     try {
       const response = await fetch('http://localhost:8000/api/v1/chat/message', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          ticket_id: ticketId, // Might be null for new sessions
+          ticket_id: ticketId,
           content: userMessageContent,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `API Error: ${response.status}`);
       }
 
       const data: ChatState = await response.json();
 
-      // Update ticketId if it's a new session
       if (!ticketId) {
         setTicketId(data.ticket_id);
+        localStorage.setItem('support_ticket_id', data.ticket_id);
       }
 
-      // Add AI response to UI
       const aiMsg: Message = {
         id: uuidv4(),
         content: data.response,
@@ -87,19 +117,17 @@ function App() {
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Handle Handoff
       if (data.needs_handoff) {
         setHandoffAlert(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      const errorMsg: Message = {
+      setMessages((prev) => [...prev, {
         id: uuidv4(),
-        content: "Sorry, I'm having trouble connecting. Please try again later.",
+        content: `Error: ${error.message || "Unexpected connection error"}`,
         sender: 'AI',
         timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -108,48 +136,57 @@ function App() {
   return (
     <div className="app-wrapper">
       <div className="chat-container">
-        {/* Header */}
         <header className="chat-header">
-          <div className="status-dot"></div>
-          <h2>AI Support Assistant</h2>
+          <div className="header-left">
+            <div className="status-dot"></div>
+            <h2>AI Support Assistant</h2>
+          </div>
+          <button className="reset-chat" onClick={() => {
+            localStorage.removeItem('support_ticket_id');
+            setTicketId(null);
+            setMessages([]);
+            setHandoffAlert(false);
+          }}>New Chat</button>
         </header>
 
-        {/* Handoff Alert */}
         {handoffAlert && (
-          <div className="handoff-alert">
-            ⚠️ A human agent has been notified. They will join this chat shortly.
+          <div className="handoff-banner">
+            <span className="banner-icon">🔔</span>
+            <span>A human agent has been notified. They will join shortly.</span>
           </div>
         )}
 
-        {/* Message Area */}
         <div className="message-area" ref={scrollRef}>
           {messages.length === 0 && (
-            <div className="empty-state">
-              <p>How can I help you today?</p>
+            <div className="welcome-screen">
+              <div className="welcome-icon">🤖</div>
+              <h3>Welcome to AI Support</h3>
+              <p>Ask me anything about our products or policies!</p>
             </div>
           )}
           
           {messages.map((msg) => (
-            <div key={msg.id} className={`message ${msg.sender.toLowerCase()}`}>
-              <div className="content">{msg.content}</div>
-              <div className="message-info">
-                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div key={msg.id} className={`message-wrapper ${msg.sender.toLowerCase()}`}>
+              <div className={`message-bubble ${msg.sender.toLowerCase()}`}>
+                <div className="content">{msg.content}</div>
+                <div className="timestamp">
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
               </div>
             </div>
           ))}
 
           {isLoading && (
-            <div className="message ai">
-              <div className="loading-dots">
-                <div className="dot"></div>
-                <div className="dot"></div>
-                <div className="dot"></div>
+            <div className="message-wrapper ai">
+              <div className="message-bubble ai loading">
+                <div className="typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Input Area */}
         <form className="input-area" onSubmit={sendMessage}>
           <input
             type="text"
@@ -159,12 +196,10 @@ function App() {
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
           />
-          <button 
-            type="submit" 
-            className="send-button" 
-            disabled={isLoading || !inputValue.trim()}
-          >
-            Send
+          <button type="submit" className="send-button" disabled={isLoading || !inputValue.trim()}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
           </button>
         </form>
       </div>

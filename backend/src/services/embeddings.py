@@ -1,6 +1,7 @@
 import logging
-from openai import OpenAI, OpenAIError
-from core.config import settings
+import os
+from google import genai
+from google.genai import types
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -8,28 +9,26 @@ logging.basicConfig(level=logging.INFO)
 
 class EmbeddingService:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = "text-embedding-3-small"
+        # Configure Gemini with the new client
+        self.client = genai.Client(api_key=os.environ.get("OPENAI_API_KEY"))
+        # Using the exact available embedding model
+        self.model = "text-embedding-004"
 
     def get_embedding(self, text: str):
         """
-        Generates an embedding for the given text using OpenAI's embedding model.
-        Includes error handling for API-related failures.
+        Generates an embedding for the given text using Google's embedding model.
         """
         if not text or not text.strip():
             logger.warning("Empty text provided for embedding.")
             return None
 
         try:
-            response = self.client.embeddings.create(
-                input=[text],
-                model=self.model
+            # Correct Google SDK call for embedding using the new client
+            response = self.client.models.embed_content(
+                model=self.model,
+                contents=text,
             )
-            return response.data[0].embedding
-        except OpenAIError as e:
-            logger.error(f"OpenAI API error during embedding generation: {str(e)}")
-            # We raise a custom or general exception to be handled by the service layer
-            raise RuntimeError(f"Failed to generate embedding: {str(e)}")
+            return response.embeddings[0].values
         except Exception as e:
-            logger.error(f"Unexpected error during embedding generation: {str(e)}")
+            logger.error(f"Error during embedding generation: {str(e)}")
             raise RuntimeError(f"An unexpected error occurred: {str(e)}")

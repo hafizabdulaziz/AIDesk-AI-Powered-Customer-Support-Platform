@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: ai-customer-support-backend
+Version: 0.1.0
+Summary: Backend services for the AI Customer Support Platform
+Author-email: Hafiz Abdul Aziz <abdulazizmemon888@gmail.com>
+Requires-Python: >=3.13
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: sqlalchemy
+Requires-Dist: psycopg2-binary
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: langchain
+Requires-Dist: langchain-openai
+Requires-Dist: chromadb
+Requires-Dist: openai
+Requires-Dist: email-validator

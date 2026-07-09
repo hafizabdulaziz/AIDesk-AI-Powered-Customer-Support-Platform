@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.config import settings
 from models.database import Base, engine
@@ -20,8 +21,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.include_router(chat.router)
+# Configure CORS to allow frontend requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+app.include_router(chat.router)
 
 @app.get("/health")
 async def health_check():
@@ -29,7 +38,6 @@ async def health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    # Log the exception here in a real app
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again later."},
