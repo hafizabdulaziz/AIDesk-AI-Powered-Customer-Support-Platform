@@ -12,7 +12,8 @@ import {
   LogOut,
   MessageCircle,
   Mic,
-  Volume2
+  Volume2,
+  Paperclip
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +40,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([
@@ -48,6 +50,7 @@ function App() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem('support_user_id', userId);
@@ -80,6 +83,31 @@ function App() {
   const speak = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/chat/upload-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+      
+      alert(`File ${file.name} uploaded and indexed successfully!`);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to upload file.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   useEffect(() => {
@@ -311,18 +339,31 @@ function App() {
             >
                 <Mic className="w-5 h-5" />
             </button>
+            <button 
+                type="button" 
+                onClick={() => fileInputRef.current?.click()} 
+                className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+            >
+                <Paperclip className="w-5 h-5" />
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileUpload}
+            />
             <input
               type="text"
               className="flex-1 bg-gray-100 border border-transparent rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
               placeholder="Type your message..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             />
             <button 
               type="submit" 
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all"
-              disabled={isLoading || !inputValue.trim()}
+              disabled={isLoading || !inputValue.trim() || isUploading}
             >
               <Send className="w-5 h-5" />
             </button>

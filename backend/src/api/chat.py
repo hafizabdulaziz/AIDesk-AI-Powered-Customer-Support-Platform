@@ -1,6 +1,7 @@
 import uuid
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -9,11 +10,30 @@ from api.dependencies import get_db
 from models.database import Ticket, Message, MessageSender, TicketStatus
 from models.schemas import MessageRead, MessageCreate
 from services.ai_agent import ai_agent
+from services.file_processor import file_processor
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+
+@router.post("/upload-file")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Uploads a file, processes it, and indexes its content for the AI.
+    """
+    temp_path = f"temp_{file.filename}"
+    try:
+        with open(temp_path, "wb") as buffer:
+            buffer.write(await file.read())
+        
+        file_processor.process_and_index(temp_path, file.filename)
+        os.remove(temp_path)
+        
+        return {"filename": file.filename, "message": "File processed and indexed successfully."}
+    except Exception as e:
+        logger.error(f"File upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process file.")
 
 @router.post("/stream-message")
 async def stream_message(payload: MessageCreate, db: Session = Depends(get_db)):
