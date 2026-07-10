@@ -1,6 +1,7 @@
 import uuid
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -13,6 +14,34 @@ from services.ai_agent import ai_agent
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+
+@router.post("/stream-message")
+async def stream_message(payload: MessageCreate, db: Session = Depends(get_db)):
+    """
+    Sends a user message to the AI agent and returns a streaming response.
+    """
+    # Create/Get Ticket (Simplified for streaming)
+    ticket_id = payload.ticket_id or str(uuid.uuid4())
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        ticket = Ticket(id=ticket_id, user_id=str(payload.user_id), status=TicketStatus.OPEN)
+        db.add(ticket)
+        db.commit()
+
+    # Save user message
+    user_msg = Message(id=str(uuid.uuid4()), ticket_id=ticket_id, sender=MessageSender.USER, content=payload.content)
+    db.add(user_msg)
+    db.commit()
+
+    # Fetch history
+    history_records = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.timestamp.asc()).all()
+    chat_history = [{"role": "user" if msg.sender == MessageSender.USER else "assistant", "content": msg.content} for msg in history_records]
+
+    # Return streaming response
+    return StreamingResponse(
+        ai_agent.stream_response_generator(payload.content, history=chat_history),
+        media_type="text/event-stream"
+    )
 
 @router.post("/message", status_code=status.HTTP_201_CREATED)
 async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):

@@ -44,6 +44,49 @@ class AIAgent:
 
         self.rag_service = RAGService()
 
+    def stream_response_generator(self, query: str, history: List[Dict[str, str]] = None):
+        """
+        Generates a streaming response.
+        """
+        if self.mock_mode:
+            # Mock streaming
+            response = "Simulated streaming response..."
+            for char in response:
+                yield char
+            return
+
+        if self.client is None:
+            yield "Technical Error: Service not initialized."
+            return
+
+        # RAG setup
+        context_chunks = self.rag_service.retrieve_relevant_chunks(query)
+        context_text = "\n".join([f"- {c['content']}" for c in context_chunks]) if context_chunks else ""
+        full_prompt = f"{'Context:\n' + context_text + '\n\n' if context_text else ''}User Query: {query}"
+
+        # History and prompt construction
+        contents = []
+        for msg in history or []:
+            role = "user" if msg["role"] == "user" else "model"
+            contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
+        contents.append(types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)]))
+
+        full_model_name = self.model_name if self.model_name.startswith("models/") else f"models/{self.model_name}"
+
+        try:
+            # Stream response
+            response_stream = self.client.models.generate_content_stream(
+                model=full_model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=self.system_instruction)
+            )
+            for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            logger.exception(f"Streaming failed: {str(e)}")
+            yield f"\n\n[Error: {str(e)[:50]}]"
+
     def generate_response(self, query: str, history: List[Dict[str, str]] = None) -> Tuple[str, bool]:
         """
         Generates a response. If MOCK_MODE is enabled, returns a simulated response.

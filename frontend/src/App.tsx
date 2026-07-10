@@ -1,5 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import './App.css';
+import { 
+  MessageSquare, 
+  Plus, 
+  Menu, 
+  X, 
+  Trash2, 
+  Send, 
+  User, 
+  Bot, 
+  Settings, 
+  LogOut,
+  MessageCircle
+} from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
@@ -10,45 +23,40 @@ interface Message {
   timestamp: string;
 }
 
-interface ChatState {
-  ticket_id: string;
-  response: string;
-  status: string;
-  needs_handoff: boolean;
-}
-
-interface HistoryMessage {
+interface ChatSession {
   id: string;
-  content: string;
-  sender: 'USER' | 'AI' | 'HUMAN_AGENT';
+  title: string;
+  lastMessage: string;
   timestamp: string;
 }
 
 function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [userId] = useState<string>(localStorage.getItem('support_user_id') || uuidv4());
   const [ticketId, setTicketId] = useState<string | null>(localStorage.getItem('support_ticket_id'));
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([
+    { id: '1', title: 'Product Inquiry', lastMessage: 'How do I return...', timestamp: '2 mins ago' },
+    { id: '2', title: 'Billing Question', lastMessage: 'My invoice is...', timestamp: '1 hour ago' },
+  ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Initialize User ID in storage
   useEffect(() => {
     localStorage.setItem('support_user_id', userId);
   }, [userId]);
 
-  // Load History on Mount
   useEffect(() => {
     const loadHistory = async () => {
       if (!ticketId) return;
-      
       try {
         const response = await fetch(`http://localhost:8000/api/v1/chat/history/${ticketId}`);
         if (response.ok) {
-          const data: HistoryMessage[] = await response.json();
-          const formattedMessages: Message[] = data.map(msg => ({
+          const data = await response.json();
+          const formattedMessages: Message[] = data.map((msg: any) => ({
             id: msg.id,
             content: msg.content,
             sender: msg.sender === 'USER' ? 'USER' : 'AI',
@@ -60,7 +68,6 @@ function App() {
         console.error('Failed to load chat history:', error);
       }
     };
-
     loadHistory();
   }, [ticketId]);
 
@@ -86,8 +93,17 @@ function App() {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
+    // Placeholder for AI message
+    const aiMsgId = uuidv4();
+    setMessages((prev) => [...prev, {
+      id: aiMsgId,
+      content: '',
+      sender: 'AI',
+      timestamp: new Date().toISOString(),
+    }]);
+
     try {
-      const response = await fetch('http://localhost:8000/api/v1/chat/message', {
+      const response = await fetch('http://localhost:8000/api/v1/chat/stream-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,112 +113,181 @@ function App() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `API Error: ${response.status}`);
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiResponseText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        aiResponseText += chunk;
+        
+        setMessages((prev) => prev.map(msg => 
+          msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
+        ));
       }
 
-      const data: ChatState = await response.json();
-
-      if (!ticketId) {
-        setTicketId(data.ticket_id);
-        localStorage.setItem('support_ticket_id', data.ticket_id);
-      }
-
-      const aiMsg: Message = {
-        id: uuidv4(),
-        content: data.response,
-        sender: 'AI',
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-
-      if (data.needs_handoff) {
-        setHandoffAlert(true);
-      }
+      // After stream is done, we might need a separate call to save ticket_id if it was new
+      // Or we can rely on the backend to handle ticket persistence on the fly
     } catch (error: any) {
       console.error('Error:', error);
-      setMessages((prev) => [...prev, {
-        id: uuidv4(),
-        content: `Error: ${error.message || "Unexpected connection error"}`,
-        sender: 'AI',
-        timestamp: new Date().toISOString(),
-      }]);
+      setMessages((prev) => prev.map(msg => 
+        msg.id === aiMsgId ? { ...msg, content: `Error: ${error.message}` } : msg
+      ));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const startNewChat = () => {
+    setTicketId(null);
+    setMessages([]);
+    setHandoffAlert(false);
+    localStorage.removeItem('support_ticket_id');
+  };
+
   return (
-    <div className="app-wrapper">
-      <div className="chat-container">
-        <header className="chat-header">
-          <div className="header-left">
-            <div className="status-dot"></div>
-            <h2>AI Support Assistant</h2>
+    <div className="flex h-screen w-full bg-white text-gray-900 overflow-hidden font-sans">
+      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 ease-in-out bg-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shrink-0`}>
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-xl text-blue-600">
+            <MessageCircle className="w-6 h-6" />
+            <span className={!isSidebarOpen ? 'hidden' : 'block'}>AI Support</span>
           </div>
-          <button className="reset-chat" onClick={() => {
-            localStorage.removeItem('support_ticket_id');
-            setTicketId(null);
-            setMessages([]);
-            setHandoffAlert(false);
-          }}>New Chat</button>
+          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-gray-200 rounded-md lg:hidden">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-3 py-2">
+          <button 
+            onClick={startNewChat}
+            className="w-full flex items-center gap-2 justify-center p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span className={!isSidebarOpen ? 'hidden' : 'block'}>New Chat</span>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          <p className={`text-xs font-semibold text-gray-500 uppercase px-3 mb-2 ${!isSidebarOpen ? 'hidden' : 'block'}`}>Recent Chats</p>
+          {chatHistory.map((chat) => (
+            <button
+              key={chat.id}
+              className="w-full flex items-center gap-3 p-3 text-left text-sm rounded-lg hover:bg-gray-200 transition-colors group relative"
+            >
+              <MessageSquare className="w-4 h-4 shrink-0 text-gray-500" />
+              <div className={`flex-1 overflow-hidden ${!isSidebarOpen ? 'hidden' : 'block'}`}>
+                <p className="font-medium truncate">{chat.title}</p>
+              </div>
+              <Trash2 className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2" />
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 border-t border-gray-200 space-y-1">
+          <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-gray-200 transition-colors">
+            <Settings className="w-4 h-4" />
+            <span className={!isSidebarOpen ? 'hidden' : 'block'}>Settings</span>
+          </button>
+          <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors">
+            <LogOut className="w-4 h-4" />
+            <span className={!isSidebarOpen ? 'hidden' : 'block'}>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col relative bg-white">
+        <header className="h-16 border-b border-gray-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            {!isSidebarOpen && (
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-md">
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+            <h2 className="font-semibold text-lg">
+              {ticketId ? 'Active Conversation' : 'New Conversation'}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+             <span className="text-xs text-gray-500">AI Online</span>
+          </div>
         </header>
 
         {handoffAlert && (
-          <div className="handoff-banner">
-            <span className="banner-icon">🔔</span>
-            <span>A human agent has been notified. They will join shortly.</span>
+          <div className="bg-blue-50 text-blue-700 px-4 py-2 text-sm flex items-center gap-2">
+            <span>🔔</span>
+            <span>A human agent has been notified and will join shortly.</span>
           </div>
         )}
 
-        <div className="message-area" ref={scrollRef}>
-          {messages.length === 0 && (
-            <div className="welcome-screen">
-              <div className="welcome-icon">🤖</div>
-              <h3>Welcome to AI Support</h3>
-              <p>Ask me anything about our products or policies!</p>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto opacity-60">
+              <div className="p-4 bg-blue-100 rounded-full">
+                <Bot className="w-12 h-12 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold">How can I help you today?</h3>
+              <p className="text-sm">I can help with product inquiries, returns, or any general questions you might have.</p>
             </div>
-          )}
-          
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message-wrapper ${msg.sender.toLowerCase()}`}>
-              <div className={`message-bubble ${msg.sender.toLowerCase()}`}>
-                <div className="content">{msg.content}</div>
-                <div className="timestamp">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex gap-3 max-w-[85%] md:max-w-[70%] ${msg.sender === 'USER' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.sender === 'USER' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    {msg.sender === 'USER' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                  </div>
+                  <div className={`space-y-1 ${msg.sender === 'USER' ? 'items-end' : 'items-start'}`}>
+                    <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
+                      msg.sender === 'USER' 
+                        ? 'bg-blue-600 text-white rounded-tr-none' 
+                        : 'bg-gray-100 rounded-tl-none'
+                    }`}>
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-
+            ))
+          )}
           {isLoading && (
-            <div className="message-wrapper ai">
-              <div className="message-bubble ai loading">
-                <div className="typing-indicator">
-                  <span></span><span></span><span></span>
+            <div className="flex justify-start">
+              <div className="flex gap-3 items-start max-w-[70%]">
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                  <Bot className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none">
+                  <p className="text-sm">Typing...</p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <form className="input-area" onSubmit={sendMessage}>
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Type your message..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={isLoading}
-          />
-          <button type="submit" className="send-button" disabled={isLoading || !inputValue.trim()}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
-          </button>
-        </form>
-      </div>
+        <div className="p-4 border-t border-gray-200">
+          <form onSubmit={sendMessage} className="max-w-3xl mx-auto relative">
+            <input
+              type="text"
+              className="w-full bg-gray-100 border border-transparent rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+              placeholder="Type your message..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              disabled={isLoading}
+            />
+            <button 
+              type="submit" 
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all"
+              disabled={isLoading || !inputValue.trim()}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
