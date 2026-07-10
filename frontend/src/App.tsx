@@ -43,10 +43,20 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatSession[]>([
-    { id: '1', title: 'Product Inquiry', lastMessage: 'How do I return...', timestamp: '2 mins ago' },
-    { id: '2', title: 'Billing Question', lastMessage: 'My invoice is...', timestamp: '1 hour ago' },
-  ]);
+  useEffect(() => {
+    const fetchChatSessions = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/v1/chat/list-sessions/${userId}`);
+        if (response.ok) {
+          const sessions = await response.json();
+          setChatHistory(sessions);
+        }
+      } catch (error) {
+        console.error('Failed to load chat sessions:', error);
+      }
+    };
+    fetchChatSessions();
+  }, [userId]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);

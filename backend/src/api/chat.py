@@ -17,6 +17,32 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
+@router.get("/list-sessions/{user_id}")
+async def list_sessions(user_id: str, db: Session = Depends(get_db)):
+    """
+    Retrieves all chat sessions for a specific user.
+    """
+    tickets = db.query(Ticket).filter(Ticket.user_id == user_id).order_by(Ticket.updated_at.desc()).all()
+    return [{"id": t.id, "title": t.title, "updated_at": t.updated_at} for t in tickets]
+
+@router.put("/rename-session/{ticket_id}")
+async def rename_session(ticket_id: str, new_title: str, db: Session = Depends(get_db)):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket.title = new_title
+    db.commit()
+    return {"message": "Session renamed successfully."}
+
+@router.delete("/delete-session/{ticket_id}")
+async def delete_session(ticket_id: str, db: Session = Depends(get_db)):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    db.delete(ticket)
+    db.commit()
+    return {"message": "Session deleted successfully."}
+
 @router.post("/upload-file")
 async def upload_file(file: UploadFile = File(...)):
     """

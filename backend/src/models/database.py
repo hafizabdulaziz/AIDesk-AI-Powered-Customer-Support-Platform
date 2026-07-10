@@ -53,6 +53,7 @@ class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    title = Column(String, default="New Conversation") # Added title column
     status = Column(SQLEnum(TicketStatus), default=TicketStatus.OPEN)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
