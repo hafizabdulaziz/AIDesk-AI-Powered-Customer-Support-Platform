@@ -37,8 +37,8 @@ class MessageBase(BaseConfigModel):
 
 class MessageCreate(BaseModel):
     content: str
-    user_id: UUID
-    ticket_id: Optional[UUID] = None
+    user_id: str
+    ticket_id: Optional[str] = None
 
 class MessageRead(MessageBase):
     id: UUID

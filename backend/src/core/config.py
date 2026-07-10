@@ -13,9 +13,8 @@ class Settings(BaseSettings):
     
     # AI / LLM
     OPENAI_API_KEY: str 
-    # Use the 'models/' prefix as required by Google AI Studio
-    LLM_MODEL: str = "models/gemini-1.5-flash"
-    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    LLM_MODEL: str = "gemini-1.5-flash"
+    EMBEDDING_MODEL: str = "text-embedding-004"
     API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     
     # Vector Store (always absolute path to backend/chroma_db)
@@ -24,8 +23,15 @@ class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "AI Customer Support Platform"
     DEBUG: bool = True
+    
+    # Mock Mode
+    MOCK_MODE: bool = False
 
-    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=ENV_FILE, 
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 @lru_cache()
 def get_settings():

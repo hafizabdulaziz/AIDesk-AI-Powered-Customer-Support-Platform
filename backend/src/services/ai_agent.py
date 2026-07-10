@@ -1,6 +1,7 @@
 import logging
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from typing import Tuple, List, Dict, Any
 from services.rag_service import RAGService
 from core.config import settings
@@ -11,40 +12,35 @@ logger = logging.getLogger(__name__)
 class AIAgent:
     def __init__(self):
         # Check for Mock Mode
-        self.mock_mode = os.getenv("MOCK_MODE", "False").lower() == "true"
+        self.mock_mode = settings.MOCK_MODE
         
         if not self.mock_mode:
-            # Configure Gemini using the validated settings
-            genai.configure(api_key=settings.OPENAI_API_KEY)
-            
-            # Define the core persona as a system instruction
-            self.system_instruction = (
-                "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
-                "Your goal is to provide the best possible experience for the user. "
-                "CORE GUIDELINES:\n"
-                "1. BE HELPFUL: Your priority is to solve the user's problem. Use provided context if available, "
-                "otherwise use your general professional knowledge to provide the best guidance.\n"
-                "2. SOCIAL INTELLIGENCE: Handle greetings and introductions naturally. "
-                "You don't need a knowledge base to say 'Hello' or acknowledge a user's name.\n"
-                "3. ADVISORY ROLE: Guide users through typical processes (e.g., returns) supportively, "
-                "even if specific internal policies aren't listed.\n"
-                "4. HONESTY: If you lack specific personal details about the user, simply state that you don't have them yet.\n"
-                "5. TONE: Professional, friendly, and solution-oriented."
-            )
-            
-            # Initialize model with system instruction
             try:
-                self.model = genai.GenerativeModel(
-                    model_name="gemini-3.5-flash",
-                    system_instruction=self.system_instruction
+                # Initialize the new Google GenAI Client
+                self.client = genai.Client(api_key=settings.OPENAI_API_KEY)
+                self.model_name = settings.LLM_MODEL
+                
+                # Define the core persona as a system instruction
+                self.system_instruction = (
+                    "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
+                    "Your goal is to provide the best possible experience for the user. "
+                    "CORE GUIDELINES:\n"
+                    "1. BE HELPFUL: Your priority is to solve the user's problem. Use provided context if available, "
+                    "otherwise use your general professional knowledge to provide the best guidance.\n"
+                    "2. SOCIAL INTELLIGENCE: Handle greetings and introductions naturally. "
+                    "You don't need a knowledge base to say 'Hello' or acknowledge a user's name.\n"
+                    "3. ADVISORY ROLE: Guide users through typical processes (e.g., returns) supportively, "
+                    "even if specific internal policies aren't listed.\n"
+                    "4. HONESTY: If you lack specific personal details about the user, simply state that you don't have them yet.\n"
+                    "5. TONE: Professional, friendly, and solution-oriented."
                 )
-                logger.info("AI Agent initialized successfully with gemini-3.5-flash")
+                logger.info(f"AI Agent initialized successfully with {self.model_name} using new SDK")
             except Exception as e:
-                logger.error(f"Failed to initialize GenerativeModel: {str(e)}")
-                self.model = None
+                logger.error(f"Failed to initialize GenAI Client: {str(e)}")
+                self.client = None
         else:
             logger.info("AI Agent running in MOCK_MODE")
-            self.model = None
+            self.client = None
 
         self.rag_service = RAGService()
 
@@ -62,13 +58,12 @@ class AIAgent:
                 return "Understood. Transferring you to a human agent.", True
             return "That's an interesting query. I'm here to help you resolve your issue promptly.", False
 
-        if self.model is None:
+        if self.client is None:
             return "I'm sorry, the AI service is not properly initialized. Please contact support.", True
 
         if history is None:
             history = []
 
-        # ... (rest of the original generate_response logic)
         # 1. Retrieve relevant context from Knowledge Base
         try:
             context_chunks = self.rag_service.retrieve_relevant_chunks(query)
@@ -90,16 +85,26 @@ class AIAgent:
         full_prompt = f"{prompt_prefix}User Query: {query}"
 
         try:
-            # 3. Format history for Gemini SDK
-            formatted_history = []
+            # 3. Format history for new SDK (List of Content objects)
+            contents = []
             for msg in history:
-                # Gemini roles: 'user' and 'model'
                 role = "user" if msg["role"] == "user" else "model"
-                formatted_history.append({"role": role, "parts": [msg["content"]]})
+                contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
 
-            # 4. Start chat and send message
-            chat = self.model.start_chat(history=formatted_history)
-            response = chat.send_message(full_prompt)
+            # Add current query as the last message
+            contents.append(types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)]))
+
+            # 4. Generate response with system instruction in config
+            # The SDK expects 'models/...' prefix for the model name
+            full_model_name = self.model_name if self.model_name.startswith("models/") else f"models/{self.model_name}"
+            
+            response = self.client.models.generate_content(
+                model=full_model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_instruction
+                )
+            )
             
             answer = response.text
             
@@ -115,5 +120,8 @@ class AIAgent:
 
         except Exception as e:
             # Log the full exception for diagnosis
-            logger.exception(f"Gemini API call failed: {str(e)}")
+            logger.exception(f"GenAI API call failed: {str(e)}")
             return f"Technical Error: {str(e)[:100]}... Please try again.", True
+
+# Initialize singleton instance of AIAgent
+ai_agent = AIAgent()
