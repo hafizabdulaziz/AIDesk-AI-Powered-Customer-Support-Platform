@@ -10,7 +10,9 @@ import {
   Bot, 
   Settings, 
   LogOut,
-  MessageCircle
+  MessageCircle,
+  Mic,
+  Volume2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
@@ -38,16 +40,47 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([
     { id: '1', title: 'Product Inquiry', lastMessage: 'How do I return...', timestamp: '2 mins ago' },
     { id: '2', title: 'Billing Question', lastMessage: 'My invoice is...', timestamp: '1 hour ago' },
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     localStorage.setItem('support_user_id', userId);
+    
+    // Initialize Web Speech API
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.lang = 'en-US';
+      
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(prev => prev + ' ' + transcript);
+        setIsListening(false);
+      };
+    }
   }, [userId]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
+
+  const speak = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  };
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -93,7 +126,6 @@ function App() {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    // Placeholder for AI message
     const aiMsgId = uuidv4();
     setMessages((prev) => [...prev, {
       id: aiMsgId,
@@ -129,9 +161,6 @@ function App() {
           msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
         ));
       }
-
-      // After stream is done, we might need a separate call to save ticket_id if it was new
-      // Or we can rely on the backend to handle ticket persistence on the fly
     } catch (error: any) {
       console.error('Error:', error);
       setMessages((prev) => prev.map(msg => 
@@ -245,9 +274,14 @@ function App() {
                     <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
                       msg.sender === 'USER' 
                         ? 'bg-blue-600 text-white rounded-tr-none' 
-                        : 'bg-gray-100 rounded-tl-none'
+                        : 'bg-gray-100 rounded-tl-none flex items-start gap-2'
                     }`}>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      {msg.sender === 'AI' && (
+                        <button onClick={() => speak(msg.content)} className="p-1 hover:bg-gray-200 rounded-full shrink-0">
+                          <Volume2 className="w-4 h-4 text-gray-500" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -269,10 +303,17 @@ function App() {
         </div>
 
         <div className="p-4 border-t border-gray-200">
-          <form onSubmit={sendMessage} className="max-w-3xl mx-auto relative">
+          <form onSubmit={sendMessage} className="max-w-3xl mx-auto relative flex gap-2">
+            <button 
+                type="button" 
+                onClick={toggleListening} 
+                className={`p-3 rounded-full ${isListening ? 'bg-red-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+            >
+                <Mic className="w-5 h-5" />
+            </button>
             <input
               type="text"
-              className="w-full bg-gray-100 border border-transparent rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+              className="flex-1 bg-gray-100 border border-transparent rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
               placeholder="Type your message..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
