@@ -38,6 +38,7 @@ function App() {
   const [userId] = useState<string>(localStorage.getItem('support_user_id') || uuidv4());
   const [ticketId, setTicketId] = useState<string | null>(localStorage.getItem('support_ticket_id'));
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
