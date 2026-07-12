@@ -174,31 +174,67 @@ function App() {
     }]);
 
     try {
-      const response = await fetch('http://localhost:8001/api/v1/chat/stream-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          ticket_id: ticketId,
-          content: userMessageContent,
-        }),
-      });
+      // If no ticketId, first call /message to get a ticketId and the first response
+      // This ensures we have a stable ticketId for subsequent streaming calls.
+      let currentTicketId = ticketId;
+      let initialResponse = '';
+      let needsHandoff = false;
 
-      if (!response.body) throw new Error("No response body");
+      if (!currentTicketId) {
+        const initRes = await fetch('http://localhost:8001/api/v1/chat/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            content: userMessageContent,
+          }),
+        });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let aiResponseText = '';
+        if (!initRes.ok) throw new Error("Failed to initialize chat session");
+        const data = await initRes.json();
+        currentTicketId = data.ticket_id;
+        initialResponse = data.response;
+        needsHandoff = data.needs_handoff;
+        setTicketId(currentTicketId);
+        localStorage.setItem('support_ticket_id', currentTicketId);
+      }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        aiResponseText += chunk;
-        
+      // If we already had a ticketId or just got one, we can still stream if we want, 
+      // but for the first message, the /message call already gave us the answer.
+      if (!ticketId) {
         setMessages((prev) => prev.map(msg => 
-          msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
+          msg.id === aiMsgId ? { ...msg, content: initialResponse } : msg
         ));
+        if (needsHandoff) setHandoffAlert(true);
+      } else {
+        // Use streaming for existing sessions
+        const response = await fetch('http://localhost:8001/api/v1/chat/stream-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            ticket_id: currentTicketId,
+            content: userMessageContent,
+          }),
+        });
+
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiResponseText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          aiResponseText += chunk;
+          
+          setMessages((prev) => prev.map(msg => 
+            msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
+          ));
+        }
+        // Note: Handoff detection for streaming would need separate logic or a special token in stream.
       }
     } catch (error: any) {
       console.error('Error:', error);

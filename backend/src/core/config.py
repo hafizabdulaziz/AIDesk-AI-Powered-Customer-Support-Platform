@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Mock Mode
-    MOCK_MODE: bool = False
+    MOCK_MODE: bool = True
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE, 

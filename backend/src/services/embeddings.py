@@ -11,6 +11,8 @@ class EmbeddingService:
         )
 
     def get_embedding(self, text: str):
+        if settings.MOCK_MODE:
+            return [0.0] * 768  # Return a dummy vector
         return self.embeddings.embed_query(text)
 
 # Singleton instance
