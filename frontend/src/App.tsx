@@ -47,7 +47,7 @@ function App() {
   useEffect(() => {
     const fetchChatSessions = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/chat/list-sessions/${userId}`);
+        const response = await fetch(`http://localhost:8001/api/v1/chat/list-sessions/${userId}`);
         if (response.ok) {
           const sessions = await response.json();
           setChatHistory(sessions);
@@ -105,7 +105,7 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/chat/upload-file', {
+      const response = await fetch('http://localhost:8001/api/v1/chat/upload-file', {
         method: 'POST',
         body: formData,
       });
@@ -125,7 +125,7 @@ function App() {
     const loadHistory = async () => {
       if (!ticketId) return;
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/chat/history/${ticketId}`);
+        const response = await fetch(`http://localhost:8001/api/v1/chat/history/${ticketId}`);
         if (response.ok) {
           const data = await response.json();
           const formattedMessages: Message[] = data.map((msg: any) => ({
@@ -174,7 +174,7 @@ function App() {
     }]);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/chat/stream-message', {
+      const response = await fetch('http://localhost:8001/api/v1/chat/stream-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
