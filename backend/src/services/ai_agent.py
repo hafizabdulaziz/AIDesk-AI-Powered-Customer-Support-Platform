@@ -30,12 +30,12 @@ class AIAgent:
         self.rag_service = RAGService()
 
     def generate_response(self, query: str, history: List[Dict[str, str]] = None) -> Tuple[str, bool]:
-        if self.mock_mode:
+        if settings.MOCK_MODE:
             if "hello" in query.lower(): return "Hello! How can I help?", False
             return "Simulated response.", False
 
         if not self.llm:
-            return "Service not initialized.", True
+            return "Service not initialized. Please ensure Ollama is running.", True
 
         # RAG Context Retrieval
         context_text = "\n".join(self.rag_service.retrieve_documents(query))
