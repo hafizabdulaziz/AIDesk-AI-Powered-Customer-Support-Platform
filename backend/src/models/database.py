@@ -67,6 +67,7 @@ class Message(Base):
     ticket_id = Column(String, ForeignKey("tickets.id"), nullable=False)
     sender = Column(SQLEnum(MessageSender), nullable=False)
     content = Column(Text, nullable=False)
+    image = Column(Text, nullable=True) # Added for multimodal support
     timestamp = Column(DateTime, default=datetime.utcnow)
     metadata_json = Column(Text, nullable=True) # Store RAG sources, confidence as JSON string
     ticket = relationship("Ticket", back_populates="messages")

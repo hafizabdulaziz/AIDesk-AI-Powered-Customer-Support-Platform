@@ -39,6 +39,7 @@ class MessageCreate(BaseModel):
     content: str
     user_id: str
     ticket_id: Optional[str] = None
+    image: Optional[str] = None
 
 class MessageRead(MessageBase):
     id: UUID

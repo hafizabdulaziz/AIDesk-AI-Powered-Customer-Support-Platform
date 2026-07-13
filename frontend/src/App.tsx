@@ -17,7 +17,9 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,6 +30,7 @@ interface Message {
   content: string;
   sender: 'USER' | 'AI';
   timestamp: string;
+  image?: string; // Added for multimodal support
 }
 
 interface ChatSession {
@@ -49,6 +52,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // For previewing image before send
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
@@ -72,6 +76,7 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem('support_user_id', userId);
@@ -109,6 +114,13 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => setSelectedImage(e.target?.result as string);
+      reader.readAsDataURL(file);
+      return;
+    }
+
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -129,6 +141,15 @@ function App() {
     }
   };
 
+  const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => setSelectedImage(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     const loadHistory = async () => {
       if (!ticketId) return;
@@ -141,6 +162,7 @@ function App() {
             content: msg.content,
             sender: msg.sender === 'USER' ? 'USER' : 'AI',
             timestamp: msg.timestamp,
+            image: msg.image,
           }));
           setMessages(formattedMessages);
         }
@@ -159,16 +181,20 @@ function App() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+    if ((!inputValue.trim() && !selectedImage) || isLoading) return;
 
     const userMessageContent = inputValue.trim();
+    const imageToBase64 = selectedImage;
+    
     setInputValue('');
+    setSelectedImage(null);
     
     const userMsg: Message = {
       id: uuidv4(),
       content: userMessageContent,
       sender: 'USER',
       timestamp: new Date().toISOString(),
+      image: imageToBase64,
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
@@ -193,6 +219,7 @@ function App() {
           body: JSON.stringify({
             user_id: userId,
             content: userMessageContent,
+            image: imageToBase64,
           }),
         });
 
@@ -218,6 +245,7 @@ function App() {
             user_id: userId,
             ticket_id: currentTicketId,
             content: userMessageContent,
+            image: imageToBase64,
           }),
         });
 
@@ -229,10 +257,7 @@ function App() {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('
-');
+          of the lines:
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               aiResponseText += line.replace('data: ', '');
@@ -400,6 +425,9 @@ function App() {
                           ? 'bg-primary text-primary-foreground rounded-tr-none' 
                           : 'bg-card border border-border rounded-tl-none'
                       }`}>
+                        {msg.image && (
+                          <img src={msg.image} alt="User upload" className="max-w-full h-auto rounded-lg mb-3 border border-border" />
+                        )}
                         <ReactMarkdown className="prose dark:prose-invert max-w-none">
                           {msg.content}
                         </ReactMarkdown>
@@ -455,24 +483,51 @@ function App() {
               >
                   <Paperclip className="w-5 h-5" />
               </button>
+              <button 
+                  type="button" 
+                  onClick={() => cameraInputRef.current?.click()} 
+                  className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-all"
+              >
+                  <Camera className="w-5 h-5" />
+              </button>
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 className="hidden" 
                 onChange={handleFileUpload}
               />
+              <input 
+                type="file" 
+                ref={cameraInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                capture="environment" 
+                onChange={handleCameraCapture}
+              />
               <input
                 type="text"
                 className="flex-1 bg-transparent border-none focus:ring-0 py-2 pl-2 pr-2 text-sm outline-none"
-                placeholder="Ask anything..."
+                placeholder={selectedImage ? "Add a caption..." : "Ask anything..."}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 disabled={isLoading || isUploading}
               />
+              {selectedImage && (
+                <div className="relative group">
+                  <img src={selectedImage} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-primary" />
+                  <button 
+                    type="button" 
+                    onClick={() => setSelectedImage(null)} 
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <button 
                 type="submit" 
                 className="p-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all"
-                disabled={isLoading || !inputValue.trim() || isUploading}
+                disabled={isLoading || !inputValue.trim() || !selectedImage || isUploading}
               >
                 <Send className="w-5 h-5" />
               </button>

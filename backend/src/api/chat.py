@@ -66,28 +66,35 @@ async def stream_message(payload: MessageCreate, db: Session = Depends(get_db)):
     """
     Sends a user message to the AI agent and returns a streaming response.
     """
-    # Create/Get Ticket (Simplified for streaming)
-    ticket_id = payload.ticket_id or str(uuid.uuid4())
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        ticket = Ticket(id=ticket_id, user_id=str(payload.user_id), status=TicketStatus.OPEN)
-        db.add(ticket)
+    try:
+        # Create/Get Ticket (Simplified for streaming)
+        ticket_id = payload.ticket_id or str(uuid.uuid4())
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            ticket = Ticket(id=ticket_id, user_id=str(payload.user_id), status=TicketStatus.OPEN)
+            db.add(ticket)
+            db.commit()
+
+        # Save user message with image support
+        user_msg = Message(id=str(uuid.uuid4()), ticket_id=ticket_id, sender=MessageSender.USER, content=payload.content, image=payload.image)
+        db.add(user_msg)
         db.commit()
 
-    # Save user message
-    user_msg = Message(id=str(uuid.uuid4()), ticket_id=ticket_id, sender=MessageSender.USER, content=payload.content)
-    db.add(user_msg)
-    db.commit()
+        # Fetch history
+        history_records = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.timestamp.asc()).all()
+        chat_history = [{"role": "user" if msg.sender == MessageSender.USER else "assistant", "content": msg.content} for msg in history_records]
 
-    # Fetch history
-    history_records = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.timestamp.asc()).all()
-    chat_history = [{"role": "user" if msg.sender == MessageSender.USER else "assistant", "content": msg.content} for msg in history_records]
-
-    # Return streaming response
-    return StreamingResponse(
-        ai_agent.stream_response_generator(payload.content, history=chat_history),
-        media_type="text/event-stream"
-    )
+        # Return streaming response with image support
+        return StreamingResponse(
+            ai_agent.stream_response_generator(payload.content, history=chat_history, image=payload.image),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error in /stream-message endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="An internal server error occurred while preparing the streaming response."
+        )
 
 @router.post("/message", status_code=status.HTTP_201_CREATED)
 async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):
@@ -116,12 +123,13 @@ async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):
             ticket = new_ticket
             ticket_id = ticket.id
         
-        # 2. Save user message to database
+        # 2. Save user message to database with image support
         user_msg = Message(
             id=str(uuid.uuid4()),
             ticket_id=ticket_id,
             sender=MessageSender.USER,
-            content=payload.content
+            content=payload.content,
+            image=payload.image
         )
         db.add(user_msg)
         db.commit()
@@ -134,9 +142,9 @@ async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):
             role = "user" if msg.sender == MessageSender.USER else "assistant"
             chat_history.append({"role": role, "content": msg.content})
 
-        # 4. Get response from AI Agent with robust error handling
+        # 4. Get response from AI Agent with robust error handling and image support
         try:
-            answer, needs_handoff = ai_agent.generate_response(payload.content, history=chat_history)
+            answer, needs_handoff = ai_agent.generate_response(payload.content, history=chat_history, image=payload.image)
         except Exception as agent_err:
             logger.error(f"AI Agent internal failure: {str(agent_err)}")
             raise HTTPException(

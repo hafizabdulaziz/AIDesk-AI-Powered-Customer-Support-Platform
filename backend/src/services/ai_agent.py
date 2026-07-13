@@ -40,7 +40,7 @@ class AIAgent:
 
         self.rag_service = RAGService()
 
-    def stream_response_generator(self, query: str, history: List[Dict[str, str]] = None):
+    def stream_response_generator(self, query: str, history: List[Dict[str, str]] = None, image: Optional[str] = None):
         """
         Generator that streams the AI response token by token.
         """
@@ -62,12 +62,22 @@ class AIAgent:
         for msg in history or []:
             messages.append(HumanMessage(content=msg["content"]) if msg["role"] == "user" else AIMessage(content=msg["content"]))
         
-        prompt = (
+        # Construct Multimodal Prompt
+        prompt_text = (
             f"Context from Knowledge Base:\n{context_text}\n\n"
             f"User Query: {query}\n\n"
             "Please provide a detailed, professional, and helpful response:"
         )
-        messages.append(HumanMessage(content=prompt))
+        
+        if image:
+            # For multimodal models in Ollama, content can be a list
+            content = [
+                {"type": "text", "text": prompt_text},
+                {"type": "image_url", "image_url": {"url": image}}
+            ]
+            messages.append(HumanMessage(content=content))
+        else:
+            messages.append(HumanMessage(content=prompt_text))
 
         try:
             for chunk in self.llm.stream(messages):
@@ -77,7 +87,7 @@ class AIAgent:
             logger.exception(f"Streaming failed: {str(e)}")
             yield f"data: Error occurred during streaming: {str(e)} \n\n"
 
-    def generate_response(self, query: str, history: List[Dict[str, str]] = None) -> Tuple[str, bool]:
+    def generate_response(self, query: str, history: List[Dict[str, str]] = None, image: Optional[str] = None) -> Tuple[str, bool]:
         answer = ""
         needs_handoff = False
 
@@ -105,24 +115,30 @@ class AIAgent:
                 else:
                     messages.append(AIMessage(content=msg["content"]))
             
-            prompt = (
+            prompt_text = (
                 f"Context from Knowledge Base:\n{context_text}\n\n"
                 f"User Query: {query}\n\n"
                 "Please provide a detailed, professional, and helpful response:"
             )
-            messages.append(HumanMessage(content=prompt))
+
+            if image:
+                content = [
+                    {"type": "text", "text": prompt_text},
+                    {"type": "image_url", "image_url": {"url": image}}
+                ]
+                messages.append(HumanMessage(content=content))
+            else:
+                messages.append(HumanMessage(content=prompt_text))
 
             try:
                 response = self.llm.invoke(messages)
                 answer = response.content
-                # Detect handoff from LLM output
                 if "[HANDOFF]" in answer or "don't have that information" in answer.lower():
                     needs_handoff = True
             except Exception as e:
                 logger.exception(f"Ollama call failed: {str(e)}")
                 return "I apologize, but I'm having trouble connecting to my local AI brain. Please make sure Ollama is running.", True
 
-        # Common cleanup logic
         clean_answer = answer.replace("[HANDOFF]", "").strip()
         return clean_answer, needs_handoff
 
