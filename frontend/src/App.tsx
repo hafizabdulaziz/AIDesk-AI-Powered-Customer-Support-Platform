@@ -257,7 +257,8 @@ function App() {
 
         while (true) {
           const { done, value } = await reader.read();
-          of the lines:
+          if (done) break;
+          const lines = decoder.decode(value).split('\n\n');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               aiResponseText += line.replace('data: ', '');
@@ -527,7 +528,7 @@ function App() {
               <button 
                 type="submit" 
                 className="p-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all"
-                disabled={isLoading || !inputValue.trim() || !selectedImage || isUploading}
+                disabled={isLoading || (!inputValue.trim() && !selectedImage) || isUploading}
               >
                 <Send className="w-5 h-5" />
               </button>
