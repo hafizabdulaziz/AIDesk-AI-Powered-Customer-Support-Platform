@@ -1,5 +1,5 @@
 import logging
-from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from typing import Tuple, List, Dict, Any
 from services.rag_service import RAGService
@@ -14,27 +14,25 @@ class AIAgent:
         
         if not self.mock_mode:
             try:
-                # Initialize ChatOpenAI using Gemini's compatible API
-                self.llm = ChatOpenAI(
-                    openai_api_key=settings.OPENAI_API_KEY,
-                    openai_api_base=settings.API_BASE_URL,
-                    model=settings.LLM_MODEL,
-                    temperature=0.3
+                # Initialize Ollama local model
+                self.llm = ChatOllama(
+                    model="llama3.2", 
+                    temperature=0.7 # Slightly higher for more natural, helpful responses
                 )
                 self.system_instruction = (
                     "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
-                    "Your goal is to help users resolve their issues efficiently and kindly.\n\n"
-                    "GROUNDING RULES:\n"
-                    "1. Use ONLY the provided 'Context' to answer the user's query.\n"
-                    "2. If the Context does not contain enough information to answer the query, "
-                    "politely state that you don't have that information and offer to transfer them to a human agent.\n"
-                    "3. Do NOT make up facts or use outside knowledge.\n"
-                    "4. If the user expresses extreme frustration or explicitly asks for a human, "
-                    "include the word '[HANDOFF]' in your response to trigger a transfer."
+                    "Your goal is to provide the best possible solutions to users, behaving like a top-tier AI (similar to GPT-4 or Gemini).\n\n"
+                    "CORE OPERATIONAL GUIDELINES:\n"
+                    "1. BE HELPFUL & DETAILED: Don't just give one-word answers. Explain the 'why' and 'how'. Provide step-by-step guides if needed.\n"
+                    "2. GROUNDING: Use the provided 'Context' as your primary source of truth. If the answer is in the context, prioritize it.\n"
+                    "3. INTELLIGENT GAP FILLING: If the context is missing some detail but you have general professional knowledge to make the answer complete and helpful, do so, but clearly distinguish between provided facts and general advice.\n"
+                    "4. EMPATHY: Acknowledge the user's feelings. Use phrases like 'I understand how frustrating this can be' or 'I'm happy to help you resolve this'.\n"
+                    "5. HANDOFF: If the user is extremely frustrated, asks for a human, or if the problem is beyond AI capability, include '[HANDOFF]' in your response.\n"
+                    "6. FORMATTING: Use Markdown (bullet points, bold text, headers) to make responses easy to read."
                 )
-                logger.info(f"AI Agent initialized successfully with Gemini ({settings.LLM_MODEL})")
+                logger.info("AI Agent initialized successfully with Ollama (llama3.2)")
             except Exception as e:
-                logger.error(f"Failed to initialize ChatOpenAI: {str(e)}")
+                logger.error(f"Failed to initialize Ollama: {str(e)}")
                 self.llm = None
         else:
             logger.info("AI Agent running in MOCK_MODE")
@@ -53,22 +51,25 @@ class AIAgent:
             return
 
         if not self.llm:
-            yield "data: Service not initialized. \n\n"
+            yield "data: Service not initialized. Please ensure Ollama is running. \n\n"
             return
 
         # RAG Context Retrieval
         retrieved_docs = self.rag_service.retrieve_documents(query)
-        context_text = "\n".join(retrieved_docs) if retrieved_docs else "No relevant information found."
+        context_text = "\n".join(retrieved_docs) if retrieved_docs else "No specific knowledge base articles found for this query."
         
         messages = [SystemMessage(content=self.system_instruction)]
         for msg in history or []:
             messages.append(HumanMessage(content=msg["content"]) if msg["role"] == "user" else AIMessage(content=msg["content"]))
         
-        prompt = f"Context:\n{context_text}\n\nQuery: {query}"
+        prompt = (
+            f"Context from Knowledge Base:\n{context_text}\n\n"
+            f"User Query: {query}\n\n"
+            "Please provide a detailed, professional, and helpful response:"
+        )
         messages.append(HumanMessage(content=prompt))
 
         try:
-            # Use stream=True in invoke or use the .stream() method of the LLM
             for chunk in self.llm.stream(messages):
                 content = chunk.content if hasattr(chunk, 'content') else str(chunk)
                 yield f"data: {content} \n\n"
@@ -90,11 +91,11 @@ class AIAgent:
                 answer = "Simulated response based on mock data."
         else:
             if not self.llm:
-                return "Service not initialized. Please ensure LLM settings are correct.", True
+                return "Service not initialized. Please ensure Ollama is running on localhost:11434.", True
 
             # RAG Context Retrieval
             retrieved_docs = self.rag_service.retrieve_documents(query)
-            context_text = "\n".join(retrieved_docs) if retrieved_docs else "No relevant information found in knowledge base."
+            context_text = "\n".join(retrieved_docs) if retrieved_docs else "No specific knowledge base articles found for this query."
             
             messages = [SystemMessage(content=self.system_instruction)]
             
@@ -107,7 +108,7 @@ class AIAgent:
             prompt = (
                 f"Context from Knowledge Base:\n{context_text}\n\n"
                 f"User Query: {query}\n\n"
-                "Assistant Response:"
+                "Please provide a detailed, professional, and helpful response:"
             )
             messages.append(HumanMessage(content=prompt))
 
@@ -118,8 +119,8 @@ class AIAgent:
                 if "[HANDOFF]" in answer or "don't have that information" in answer.lower():
                     needs_handoff = True
             except Exception as e:
-                logger.exception(f"LLM call failed: {str(e)}")
-                return "I apologize, but I'm having trouble connecting to my brain right now. Please try again later.", True
+                logger.exception(f"Ollama call failed: {str(e)}")
+                return "I apologize, but I'm having trouble connecting to my local AI brain. Please make sure Ollama is running.", True
 
         # Common cleanup logic
         clean_answer = answer.replace("[HANDOFF]", "").strip()

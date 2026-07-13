@@ -2,7 +2,7 @@ import logging
 import PyPDF2
 from typing import List, Dict
 from services.vector_store import vector_store
-from services.embeddings import EmbeddingService
+from services.embeddings import PseudoEmbeddingService
 import uuid
 
 # Setup logger
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class FileProcessingService:
     def __init__(self):
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = PseudoEmbeddingService()
         self.collection = vector_store.get_or_create_collection("support_kb")
 
     def process_and_index(self, file_path: str, filename: str):

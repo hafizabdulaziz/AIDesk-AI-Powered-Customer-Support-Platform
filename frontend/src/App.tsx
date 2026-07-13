@@ -228,7 +228,14 @@ function App() {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
-          aiResponseText += chunk;
+          
+          // Parse stream chunks
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              aiResponseText += line.replace('data: ', '');
+            }
+          }
           
           setMessages((prev) => prev.map(msg => 
             msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
