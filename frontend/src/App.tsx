@@ -228,11 +228,9 @@ function App() {
         currentTicketId = data.ticket_id;
         initialResponse = data.response;
         needsHandoff = data.needs_handoff;
+      if (!ticketId) {
         setTicketId(currentTicketId);
         localStorage.setItem('support_ticket_id', currentTicketId);
-      }
-
-      if (!ticketId) {
         setMessages((prev) => prev.map(msg => 
           msg.id === aiMsgId ? { ...msg, content: initialResponse } : msg
         ));
