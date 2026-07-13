@@ -17,10 +17,71 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  
+  const [userId] = useState<string>(localStorage.getItem('support_user_id') || uuidv4());
+  const [ticketId, setTicketId] = useState<string | null>(localStorage.getItem('support_ticket_id'));
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('support_user_id', userId);
+  }, [isDarkMode, userId]);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMsg: Message = {
+      id: uuidv4(),
+      content: inputValue,
+      sender: 'USER',
+      timestamp: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, userMsg]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+        const response = await fetch('http://localhost:8001/api/v1/chat/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            ticket_id: ticketId,
+            content: userMsg.content,
+          }),
+        });
+
+        if (!response.ok) throw new Error("Failed to send message");
+        const data = await response.json();
+        
+        if (data.ticket_id) {
+            setTicketId(data.ticket_id);
+            localStorage.setItem('support_ticket_id', data.ticket_id);
+        }
+
+        const aiMsg: Message = {
+            id: uuidv4(),
+            content: data.response,
+            sender: 'AI',
+            timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+        console.error("Error:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
 
   if (!isLoggedIn) {
     return (
@@ -46,7 +107,7 @@ function App() {
           <button onClick={() => setIsSidebarOpen(false)}><X className="w-5 h-5" /></button>
         </div>
         <div className="p-3">
-          <button onClick={() => setMessages([])} className="w-full flex items-center gap-2 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={() => { setMessages([]); setTicketId(null); localStorage.removeItem('support_ticket_id'); }} className="w-full flex items-center gap-2 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Plus className="w-4 h-4" /> New Chat
           </button>
         </div>
