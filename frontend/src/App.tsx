@@ -14,6 +14,7 @@ interface Message {
 }
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,41 +22,21 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-  }, [isDarkMode]);
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
-
-    const userMsg: Message = {
-      id: uuidv4(),
-      content: inputValue,
-      sender: 'USER',
-      timestamp: new Date().toISOString(),
-    };
-    
-    setMessages(prev => [...prev, userMsg]);
-    setInputValue('');
-    setIsLoading(true);
-
-    // Simulated AI response
-    setTimeout(() => {
-      const aiMsg: Message = {
-        id: uuidv4(),
-        content: "This is a response from the AI assistant. The UI is now clean, readable, and fully functional.",
-        sender: 'AI',
-        timestamp: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, aiMsg]);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+  if (!isLoggedIn) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-xl border dark:border-slate-800 w-96 space-y-6">
+          <h2 className="text-2xl font-bold text-center">Login to AI Support</h2>
+          <button 
+            onClick={() => setIsLoggedIn(true)}
+            className="w-full p-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Login / Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
