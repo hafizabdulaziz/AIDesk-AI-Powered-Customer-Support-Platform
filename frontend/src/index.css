@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
+  --background: 220 20% 98%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
@@ -22,6 +22,8 @@
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
+  --sidebar-bg: 222.2 47.8% 11%;
+  --sidebar-foreground: 210 40% 98%;
 }
 
 .dark {
@@ -38,12 +40,14 @@
   --muted: 217.2 91.2% 59.8%;
   --muted-foreground: 215.4 16.3% 46.9%;
   --accent: 217.2 91.2% 59.8%;
-  --accent-foreground: 210 40% 98%;
+  --accent-foreground: 222.2 47.8% 11.2%;
   --destructive: 0 63.9% 31%;
   --destructive-foreground: 210 40% 98%;
   --border: 217.2 91.2% 59.8%;
   --input: 217.2 91.2% 59.8%;
   --ring: 221.2 83.2% 53.3%;
+  --sidebar-bg: 222.2 84% 4.9%;
+  --sidebar-foreground: 210 40% 98%;
 }
 
 body {
@@ -52,4 +56,24 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Custom scrollbar for a more professional look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+

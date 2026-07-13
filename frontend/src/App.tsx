@@ -13,7 +13,11 @@ import {
   MessageCircle,
   Mic,
   Volume2,
-  Paperclip
+  Paperclip,
+  Sun,
+  Moon,
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
@@ -35,6 +39,7 @@ interface ChatSession {
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [userId] = useState<string>(localStorage.getItem('support_user_id') || uuidv4());
   const [ticketId, setTicketId] = useState<string | null>(localStorage.getItem('support_ticket_id'));
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,6 +49,11 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [handoffAlert, setHandoffAlert] = useState(false);
   const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+  }, [isDarkMode]);
+
   useEffect(() => {
     const fetchChatSessions = async () => {
       try {
@@ -66,7 +76,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('support_user_id', userId);
     
-    // Initialize Web Speech API
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
@@ -111,7 +120,6 @@ function App() {
       });
 
       if (!response.ok) throw new Error("Upload failed");
-      
       alert(`File ${file.name} uploaded and indexed successfully!`);
     } catch (error) {
       console.error(error);
@@ -174,8 +182,6 @@ function App() {
     }]);
 
     try {
-      // If no ticketId, first call /message to get a ticketId and the first response
-      // This ensures we have a stable ticketId for subsequent streaming calls.
       let currentTicketId = ticketId;
       let initialResponse = '';
       let needsHandoff = false;
@@ -199,15 +205,12 @@ function App() {
         localStorage.setItem('support_ticket_id', currentTicketId);
       }
 
-      // If we already had a ticketId or just got one, we can still stream if we want, 
-      // but for the first message, the /message call already gave us the answer.
       if (!ticketId) {
         setMessages((prev) => prev.map(msg => 
           msg.id === aiMsgId ? { ...msg, content: initialResponse } : msg
         ));
         if (needsHandoff) setHandoffAlert(true);
       } else {
-        // Use streaming for existing sessions
         const response = await fetch('http://localhost:8001/api/v1/chat/stream-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -228,20 +231,17 @@ function App() {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
-          
-          // Parse stream chunks
-          const lines = chunk.split('\n');
+          const lines = chunk.split('
+');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               aiResponseText += line.replace('data: ', '');
             }
           }
-          
           setMessages((prev) => prev.map(msg => 
             msg.id === aiMsgId ? { ...msg, content: aiResponseText } : msg
           ));
         }
-        // Note: Handoff detection for streaming would need separate logic or a special token in stream.
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -260,15 +260,23 @@ function App() {
     localStorage.removeItem('support_ticket_id');
   };
 
+  const suggestions = [
+    "How can I reset my password?",
+    "What are your shipping policies?",
+    "I want to track my order",
+    "Tell me more about your premium plan"
+  ];
+
   return (
-    <div className="flex h-screen w-full bg-white text-gray-900 overflow-hidden font-sans">
-      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 ease-in-out bg-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shrink-0`}>
+    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden transition-colors duration-300">
+      {/* Sidebar */}
+      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 ease-in-out bg-sidebar-bg text-sidebar-foreground flex flex-col overflow-hidden shrink-0 border-r border-border`}>
         <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-xl text-blue-600">
-            <MessageCircle className="w-6 h-6" />
-            <span className={!isSidebarOpen ? 'hidden' : 'block'}>AI Support</span>
+          <div className="flex items-center gap-2 font-bold text-xl">
+            <Sparkles className="w-6 h-6 text-primary" />
+            <span className={!isSidebarOpen ? 'hidden' : 'block'}>AI Platform</span>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-gray-200 rounded-md lg:hidden">
+          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white/10 rounded-md lg:hidden">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -276,61 +284,72 @@ function App() {
         <div className="px-3 py-2">
           <button 
             onClick={startNewChat}
-            className="w-full flex items-center gap-2 justify-center p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="w-full flex items-center gap-2 justify-center p-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all shadow-sm"
           >
             <Plus className="w-5 h-5" />
             <span className={!isSidebarOpen ? 'hidden' : 'block'}>New Chat</span>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          <p className={`text-xs font-semibold text-gray-500 uppercase px-3 mb-2 ${!isSidebarOpen ? 'hidden' : 'block'}`}>Recent Chats</p>
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2">
+          <p className={`text-xs font-semibold text-muted-foreground uppercase px-3 mb-2 ${!isSidebarOpen ? 'hidden' : 'block'}`}>Recent History</p>
           {chatHistory.map((chat) => (
             <button
               key={chat.id}
-              className="w-full flex items-center gap-3 p-3 text-left text-sm rounded-lg hover:bg-gray-200 transition-colors group relative"
+              className="w-full flex items-center gap-3 p-3 text-left text-sm rounded-xl hover:bg-white/10 transition-colors group relative"
             >
-              <MessageSquare className="w-4 h-4 shrink-0 text-gray-500" />
+              <MessageSquare className="w-4 h-4 shrink-0 text-muted-foreground" />
               <div className={`flex-1 overflow-hidden ${!isSidebarOpen ? 'hidden' : 'block'}`}>
                 <p className="font-medium truncate">{chat.title}</p>
               </div>
-              <Trash2 className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2" />
+              <Trash2 className="w-4 h-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2" />
             </button>
           ))}
         </div>
 
-        <div className="p-4 border-t border-gray-200 space-y-1">
-          <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-gray-200 transition-colors">
+        <div className="p-4 border-t border-white/10 space-y-1">
+          <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-white/10 transition-colors">
             <Settings className="w-4 h-4" />
             <span className={!isSidebarOpen ? 'hidden' : 'block'}>Settings</span>
           </button>
-          <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors">
-            <LogOut className="w-4 h-4" />
-            <span className={!isSidebarOpen ? 'hidden' : 'block'}>Logout</span>
-          </button>
+          <div className="flex items-center justify-between p-2">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors text-left">
+              <LogOut className="w-4 h-4" />
+              <span className={!isSidebarOpen ? 'hidden' : 'block'}>Logout</span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col relative bg-white">
-        <header className="h-16 border-b border-gray-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10">
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col relative bg-background">
+        <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background/80 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-3">
             {!isSidebarOpen && (
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-md">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-muted rounded-md">
                 <Menu className="w-5 h-5" />
               </button>
             )}
-            <h2 className="font-semibold text-lg">
-              {ticketId ? 'Active Conversation' : 'New Conversation'}
-            </h2>
+            <div className="flex items-center gap-2 group cursor-pointer hover:bg-muted p-1 rounded-lg transition-all">
+              <h2 className="font-semibold text-lg">
+                {ticketId ? 'Active Chat' : 'AI Assistant'}
+              </h2>
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-             <span className="text-xs text-gray-500">AI Online</span>
+          <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-500 rounded-full text-xs font-medium">
+               <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+               <span className="hidden sm:inline">Llama 3.2 Online</span>
+             </div>
           </div>
         </header>
 
         {handoffAlert && (
-          <div className="bg-blue-50 text-blue-700 px-4 py-2 text-sm flex items-center gap-2">
+          <div className="bg-primary/10 text-primary px-4 py-2 text-sm flex items-center gap-2 border-b border-primary/20 animate-in slide-in-from-top duration-300">
             <span>🔔</span>
             <span>A human agent has been notified and will join shortly.</span>
           </div>
@@ -338,90 +357,130 @@ function App() {
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto opacity-60">
-              <div className="p-4 bg-blue-100 rounded-full">
-                <Bot className="w-12 h-12 text-blue-600" />
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 max-w-2xl mx-auto px-4">
+              <div className="relative">
+                <div className="p-6 bg-primary/10 rounded-3xl">
+                  <Bot className="w-16 h-16 text-primary" />
+                </div>
+                <div className="absolute -top-2 -right-2 p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg">
+                  <Sparkles className="w-5 h-5 text-yellow-500" />
+                </div>
               </div>
-              <h3 className="text-xl font-bold">How can I help you today?</h3>
-              <p className="text-sm">I can help with product inquiries, returns, or any general questions you might have.</p>
+              <div className="space-y-2">
+                <h3 className="text-3xl font-bold tracking-tight">How can I help you today?</h3>
+                <p className="text-muted-foreground text-lg max-w-md mx-auto">
+                  Ask me anything about your products, support, or just have a chat.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
+                {suggestions.map((s, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => { setInputValue(s); }}
+                    className="p-4 text-left text-sm rounded-2xl border border-border bg-card hover:border-primary transition-all hover:shadow-md group"
+                  >
+                    <p className="font-medium group-hover:text-primary transition-colors">{s}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex gap-3 max-w-[85%] md:max-w-[70%] ${msg.sender === 'USER' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.sender === 'USER' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                    {msg.sender === 'USER' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
-                  </div>
-                  <div className={`space-y-1 ${msg.sender === 'USER' ? 'items-end' : 'items-start'}`}>
-                    <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
-                      msg.sender === 'USER' 
-                        ? 'bg-blue-600 text-white rounded-tr-none' 
-                        : 'bg-gray-100 rounded-tl-none flex items-start gap-2'
+            <div className="max-w-3xl mx-auto w-full space-y-8">
+              {messages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'} group`}>
+                  <div className={`flex gap-4 max-w-[90%] ${msg.sender === 'USER' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                      msg.sender === 'USER' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                     }`}>
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      {msg.sender === 'AI' && (
-                        <button onClick={() => speak(msg.content)} className="p-1 hover:bg-gray-200 rounded-full shrink-0">
-                          <Volume2 className="w-4 h-4 text-gray-500" />
-                        </button>
-                      )}
+                      {msg.sender === 'USER' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                    </div>
+                    <div className={`flex flex-col ${msg.sender === 'USER' ? 'items-end' : 'items-start'}`}>
+                      <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                        msg.sender === 'USER' 
+                          ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                          : 'bg-card border border-border rounded-tl-none'
+                      }`}>
+                        <ReactMarkdown className="prose dark:prose-invert max-w-none">
+                          {msg.content}
+                        </ReactMarkdown>
+                        {msg.sender === 'AI' && (
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                            <button onClick={() => speak(msg.content)} className="p-1.5 hover:bg-muted rounded-md transition-colors">
+                              <Volume2 className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
           {isLoading && (
-            <div className="flex justify-start">
-              <div className="flex gap-3 items-start max-w-[70%]">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                  <Bot className="w-5 h-5 text-gray-500" />
+            <div className="flex justify-start max-w-3xl mx-auto w-full">
+              <div className="flex gap-4 items-start">
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Bot className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none">
-                  <p className="text-sm">Typing...</p>
+                <div className="bg-card border border-border p-4 rounded-2xl rounded-tl-none">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"></span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-200">
-          <form onSubmit={sendMessage} className="max-w-3xl mx-auto relative flex gap-2">
-            <button 
-                type="button" 
-                onClick={toggleListening} 
-                className={`p-3 rounded-full ${isListening ? 'bg-red-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
-            >
-                <Mic className="w-5 h-5" />
-            </button>
-            <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()} 
-                className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
-            >
-                <Paperclip className="w-5 h-5" />
-            </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              onChange={handleFileUpload}
-            />
-            <input
-              type="text"
-              className="flex-1 bg-gray-100 border border-transparent rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-              placeholder="Type your message..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              disabled={isLoading || isUploading}
-            />
-            <button 
-              type="submit" 
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all"
-              disabled={isLoading || !inputValue.trim() || isUploading}
-            >
-              <Send className="w-5 h-5" />
-            </button>
+        <div className="p-4 bg-gradient-to-t from-background via-background to-transparent">
+          <form onSubmit={sendMessage} className="max-w-3xl mx-auto relative flex items-center gap-2">
+            <div className="flex-1 relative flex items-center gap-2 bg-card border border-border rounded-2xl p-2 shadow-lg focus-within:border-primary transition-all">
+              <button 
+                  type="button" 
+                  onClick={toggleListening} 
+                  className={`p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white' : 'hover:bg-muted text-muted-foreground'}`}
+              >
+                  <Mic className="w-5 h-5" />
+              </button>
+              <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-all"
+              >
+                  <Paperclip className="w-5 h-5" />
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileUpload}
+              />
+              <input
+                type="text"
+                className="flex-1 bg-transparent border-none focus:ring-0 py-2 pl-2 pr-2 text-sm outline-none"
+                placeholder="Ask anything..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isLoading || isUploading}
+              />
+              <button 
+                type="submit" 
+                className="p-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all"
+                disabled={isLoading || !inputValue.trim() || isUploading}
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
           </form>
+          <p className="text-center text-[10px] text-muted-foreground mt-3">
+            AI can make mistakes. Check important info.
+          </p>
         </div>
       </main>
     </div>
