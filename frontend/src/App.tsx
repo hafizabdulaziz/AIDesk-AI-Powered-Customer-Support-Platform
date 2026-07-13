@@ -267,10 +267,11 @@ function App() {
           ));
         }
       }
-    } catch (error: any) {
-      console.error('Error:', error);
+    } catch (error) {
+      const err = error as Error;
+      console.error('Error:', err);
       setMessages((prev) => prev.map(msg => 
-        msg.id === aiMsgId ? { ...msg, content: `Error: ${error.message}` } : msg
+        msg.id === aiMsgId ? { ...msg, content: `Error: ${err.message}` } : msg
       ));
     } finally {
       setIsLoading(false);
