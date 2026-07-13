@@ -1,7 +1,7 @@
 import logging
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 from services.rag_service import RAGService
 from core.config import settings
 
@@ -21,13 +21,13 @@ class AIAgent:
                 )
                 self.system_instruction = (
                     "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
-                    "Your goal is to provide the best possible solutions to users, behaving like a top-tier AI (similar to GPT-4 or Gemini).\n\n"
-                    "CORE OPERATIONAL GUIDELINES:\n"
-                    "1. BE HELPFUL & DETAILED: Don't just give one-word answers. Explain the 'why' and 'how'. Provide step-by-step guides if needed.\n"
-                    "2. GROUNDING: Use the provided 'Context' as your primary source of truth. If the answer is in the context, prioritize it.\n"
-                    "3. INTELLIGENT GAP FILLING: If the context is missing some detail but you have general professional knowledge to make the answer complete and helpful, do so, but clearly distinguish between provided facts and general advice.\n"
-                    "4. EMPATHY: Acknowledge the user's feelings. Use phrases like 'I understand how frustrating this can be' or 'I'm happy to help you resolve this'.\n"
-                    "5. HANDOFF: If the user is extremely frustrated, asks for a human, or if the problem is beyond AI capability, include '[HANDOFF]' in your response.\n"
+                    "Your goal is to provide the best possible solutions to users, behaving like a top-tier AI (similar to GPT-4 or Gemini). "
+                    "CORE OPERATIONAL GUIDELINES: "
+                    "1. BE HELPFUL & DETAILED: Don't just give one-word answers. Explain the 'why' and 'how'. Provide step-by-step guides if needed. "
+                    "2. GROUNDING: Use the provided 'Context' as your primary source of truth. If the answer is in the context, prioritize it. "
+                    "3. INTELLIGENT GAP FILLING: If the context is missing some detail but you have general professional knowledge to make the answer complete and helpful, do so, but clearly distinguish between provided facts and general advice. "
+                    "4. EMPATHY: Acknowledge the user's feelings. Use phrases like 'I understand how frustrating this can be' or 'I'm happy to help you resolve this'. "
+                    "5. HANDOFF: If the user is extremely frustrated, asks for a human, or if the problem is beyond AI capability, include '[HANDOFF]' in your response. "
                     "6. FORMATTING: Use Markdown (bullet points, bold text, headers) to make responses easy to read."
                 )
                 logger.info("AI Agent initialized successfully with Ollama (llama3.2)")
@@ -47,11 +47,11 @@ class AIAgent:
         if settings.MOCK_MODE:
             mock_text = "This is a simulated streaming response from the AI agent. " * 5
             for word in mock_text.split():
-                yield f"data: {word} \n\n"
+                yield f"data: {word}\n\n"
             return
 
         if not self.llm:
-            yield "data: Service not initialized. Please ensure Ollama is running. \n\n"
+            yield "data: Service not initialized. Please ensure Ollama is running.\n\n"
             return
 
         # RAG Context Retrieval
@@ -70,7 +70,6 @@ class AIAgent:
         )
         
         if image:
-            # For multimodal models in Ollama, content can be a list
             content = [
                 {"type": "text", "text": prompt_text},
                 {"type": "image_url", "image_url": {"url": image}}
@@ -82,10 +81,18 @@ class AIAgent:
         try:
             for chunk in self.llm.stream(messages):
                 content = chunk.content if hasattr(chunk, 'content') else str(chunk)
-                yield f"data: {content} \n\n"
+                yield f"data: {content}\n\n"
         except Exception as e:
+            err_msg = str(e).lower()
+            if "connection" in err_msg or "refused" in err_msg:
+                error_response = "Connection Error: Ollama is not running. Please start Ollama and try again."
+            elif "not found" in err_msg or "model" in err_msg:
+                error_response = f"Model Error: The model 'llama3.2' was not found. Please run 'ollama pull llama3.2' in your terminal."
+            else:
+                error_response = f"AI Error: {str(e)}"
+            
             logger.exception(f"Streaming failed: {str(e)}")
-            yield f"data: Error occurred during streaming: {str(e)} \n\n"
+            yield f"data: {error_response}\n\n"
 
     def generate_response(self, query: str, history: List[Dict[str, str]] = None, image: Optional[str] = None) -> Tuple[str, bool]:
         answer = ""
@@ -136,12 +143,19 @@ class AIAgent:
                 if "[HANDOFF]" in answer or "don't have that information" in answer.lower():
                     needs_handoff = True
             except Exception as e:
+                err_msg = str(e).lower()
+                if "connection" in err_msg or "refused" in err_msg:
+                    answer = "Connection Error: Ollama is not running. Please start the Ollama application on your machine."
+                elif "not found" in err_msg or "model" in err_msg:
+                    answer = "Model Error: The 'llama3.2' model is not installed. Please run 'ollama pull llama3.2' in your terminal."
+                else:
+                    answer = f"AI Error: {str(e)}"
+                
                 logger.exception(f"Ollama call failed: {str(e)}")
-                return "I apologize, but I'm having trouble connecting to my local AI brain. Please make sure Ollama is running.", True
+                return answer, True
 
         clean_answer = answer.replace("[HANDOFF]", "").strip()
         return clean_answer, needs_handoff
 
 # Initialize singleton instance
 ai_agent = AIAgent()
-
