@@ -26,10 +26,19 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [chatHistory, setChatHistory] = useState<{id: string, title: string}[]>([]);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('support_user_id', userId);
+    
+    // Fetch chat sessions
+    fetch(`http://localhost:8001/api/v1/chat/list-sessions/${userId}`)
+      .then(res => res.json())
+      .then(data => setChatHistory(data))
+      .catch(err => console.error("History fetch error:", err));
   }, [isDarkMode, userId]);
+
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +89,23 @@ function App() {
   };
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+    if (ticketId) {
+      fetch(`http://localhost:8001/api/v1/chat/history/${ticketId}`)
+        .then(res => res.json())
+        .then(data => {
+            const formatted = data.map((msg: any) => ({
+                id: msg.id || uuidv4(),
+                content: msg.content,
+                sender: msg.sender === 'AI' ? 'AI' : 'USER',
+                timestamp: msg.timestamp || new Date().toISOString()
+            }));
+            setMessages(formatted);
+        })
+        .catch(err => console.error("History loading error:", err));
+    } else {
+        setMessages([]);
+    }
+  }, [ticketId]);
 
   if (!isLoggedIn) {
     return (
@@ -112,7 +136,20 @@ function App() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {/* History items would go here */}
+            {chatHistory.map(chat => (
+              <button 
+                key={chat.id}
+                onClick={() => {
+                  setTicketId(chat.id);
+                  localStorage.setItem('support_ticket_id', chat.id);
+                  // Need to fetch messages for this chat now
+                }}
+                className="w-full flex items-center gap-2 p-3 text-sm text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <MessageSquare className="w-4 h-4 text-slate-400" />
+                <span className="truncate">{chat.title}</span>
+              </button>
+            ))}
         </div>
         <div className="p-4 border-t dark:border-slate-800">
            <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-full flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
