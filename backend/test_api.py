@@ -2,7 +2,7 @@ import requests
 import json
 import uuid
 
-API_URL = "http://localhost:8000/api/v1/chat/message"
+API_URL = "http://localhost:8001/api/v1/chat/message"
 USER_ID = str(uuid.uuid4())
 TICKET_ID = None
 
@@ -26,11 +26,15 @@ def run_tests():
         
         print(f"Test {i+1}: {test['content']}")
         try:
-            response = requests.post(API_URL, json=payload, timeout=30)
+            print(f"Sending request...")
+            response = requests.post(API_URL, json=payload, timeout=60)
+            print(f"Status: {response.status_code}")
             if response.status_code == 201:
                 data = response.json()
+                print(f"Data received: {data}")
                 TICKET_ID = data.get("ticket_id")
-                print(f"Response: {data['response']}")
+                print(f"Response: {data.get('response')}")
+
                 print(f"Handoff needed: {data['needs_handoff']}")
                 print(f"Ticket Status: {data['status']}")
             else:
