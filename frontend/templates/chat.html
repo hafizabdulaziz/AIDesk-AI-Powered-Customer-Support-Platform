@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - AIDesk{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-64px)] overflow-hidden">
+    <!-- Left Sidebar: Tickets List -->
+    <aside class="w-64 md:w-80 bg-gray-100 border-r border-gray-200 flex flex-col">
+        <div class="p-4 border-b border-gray-200">
+            <button id="new-ticket-btn" class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm">
+                <i class="fas fa-plus"></i> New Ticket
+            </button>
+        </div>
+        <div id="tickets-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+            <!-- Tickets will be loaded here dynamically -->
+            <div class="p-3 text-sm text-gray-500 text-center italic">
+                Loading tickets...
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="flex-1 flex flex-col bg-white relative">
+        <!-- Chat Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 id="current-ticket-title" class="text-lg font-semibold text-gray-800">Select a ticket to start chatting</h2>
+            <div id="ticket-meta" class="hidden flex items-center gap-3">
+                <span id="ticket-status" class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Open</span>
+                <span id="ticket-priority" class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">Medium</span>
+            </div>
+        </div>
+
+        <!-- Messages Container -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-gray-50">
+            <!-- Welcome State -->
+            <div id="welcome-state" class="h-full flex flex-col items-center justify-center text-center space-y-4">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800">Welcome to AIDesk</h3>
+                    <p class="text-gray-500 max-w-xs mx-auto">Select a ticket from the sidebar or create a new one to start chatting with our AI assistant.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 md:p-6 border-t border-gray-200 bg-white">
+            <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center gap-2">
+                <input 
+                    type="text" 
+                    id="chat-input" 
+                    placeholder="Type your message here..." 
+                    class="flex-1 p-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
+                    disabled
+                >
+                <button 
+                    type="submit" 
+                    id="send-btn" 
+                    class="absolute right-2 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:text-gray-400 disabled:hover:bg-transparent"
+                    disabled
+                >
+                    <i class="fas fa-paper-plane text-xl"></i>
+                </button>
+            </form>
+            <p class="text-center text-[10px] text-gray-400 mt-2">
+                AIDesk may produce inaccurate information about people, places, or facts.
+            </p>
+        </div>
+    </main>
+</div>
+
+<style>
+    /* Custom scrollbar for a cleaner look */
+    #chat-messages::-webkit-scrollbar, #tickets-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    #chat-messages::-webkit-scrollbar-track, #tickets-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #chat-messages::-webkit-scrollbar-thumb, #tickets-list::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 10px;
+    }
+    #chat-messages::-webkit-scrollbar-thumb:hover, #tickets-list::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+</style>
+
+<script>
+    // Basic UI logic for Step 2
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    // This is a placeholder for Step 3. For Step 2, we just ensure the layout is correct.
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Example of how bubbles will look (to be implemented in chat.js)
+    function createMessageBubble(text, isUser) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`;
+        
+        const bubble = document.createElement('div');
+        bubble.className = `max-w-[80%] p-3 rounded-2xl shadow-sm ${
+            isUser 
+            ? 'bg-blue-600 text-white rounded-tr-none' 
+            : 'bg-gray-200 text-gray-800 rounded-tl-none'
+        }`;
+        bubble.textContent = text;
+        
+        wrapper.appendChild(bubble);
+        return wrapper;
+    }
+</script>
+{% endblock %}
