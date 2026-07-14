@@ -12,7 +12,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat
+from api import chat, admin, agent
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -31,6 +31,8 @@ app.add_middleware(
 )
 
 app.include_router(chat.router)
+app.include_router(admin.router)
+app.include_router(agent.router)
 
 @app.get("/health")
 async def health_check():
@@ -49,3 +51,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    # Run on port 8001 as expected by the frontend
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+

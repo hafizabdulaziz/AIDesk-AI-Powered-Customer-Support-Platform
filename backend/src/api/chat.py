@@ -185,17 +185,41 @@ async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):
             detail="An internal server error occurred while processing your message."
         )
 
-@router.get("/history/{ticket_id}", response_model=List[MessageRead])
-async def get_chat_history(ticket_id: str, db: Session = Depends(get_db)):
+import requests
+
+@router.get("/health")
+async def health_check(db: Session = Depends(get_db)):
     """
-    Retrieves the full conversation history for a specific ticket.
+    Checks the health of the AI service, specifically the Ollama connection and model availability.
     """
-    messages = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.timestamp.asc()).all()
+    health_status = {
+        "ollama_running": False,
+        "model_installed": False,
+        "status": "unhealthy",
+        "message": ""
+    }
     
-    if not messages:
-        # Check if ticket exists
-        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found")
+    try:
+        # 1. Check if Ollama is running
+        response = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response.status_code == 200:
+            health_status["ollama_running"] = True
+            models = response.json().get("models", [])
+            model_names = [m.get("name") for m in models]
             
-    return messages
+            # 2. Check if llama3.2 is in the list
+            if any("llama3.2" in name for name in model_names):
+                health_status["model_installed"] = True
+                health_status["status"] = "healthy"
+                health_status["message"] = "AI Engine is ready."
+            else:
+                health_status["message"] = "Ollama is running, but 'llama3.2' model is missing. Run 'ollama pull llama3.2'."
+        else:
+            health_status["message"] = "Ollama service is not responding. Please start Ollama."
+            
+    except requests.exceptions.ConnectionError:
+        health_status["message"] = "Ollama is not running. Please start the Ollama application."
+    except Exception as e:
+        health_status["message"] = f"Health check failed: {str(e)}"
+        
+    return health_status
