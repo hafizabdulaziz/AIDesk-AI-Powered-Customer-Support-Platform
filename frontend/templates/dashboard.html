@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - AIDesk{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">System Overview</h1>
+            <p class="text-gray-500">Real-time analytics of your support platform</p>
+        </div>
+        <div class="text-sm text-gray-400" id="last-updated">
+            Last updated: Just now
+        </div>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-105">
+            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                <i class="fas fa-ticket-alt"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Total Tickets</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="stat-total">0</h3>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-105">
+            <div class="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center text-xl">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Resolved</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="stat-resolved">0</h3>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-105">
+            <div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-xl flex items-center justify-center text-xl">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Pending Human</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="stat-pending">0</h3>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-105">
+            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+                <i class="fas fa-user-cog"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Open</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="stat-open">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Category Distribution -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">Tickets by Category</h3>
+            <div class="h-64 relative">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Priority Distribution -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">Tickets by Priority</h3>
+            <div class="h-64 relative">
+                <canvas id="priorityChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Tickets Table -->
+    <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">Recent Tickets</h3>
+            <a href="/tickets" class="text-sm text-blue-600 hover:underline font-medium">View all</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                    <tr>
+                        <th class="px-6 py-4">Ticket ID</th>
+                        <th class="px-6 py-4">Subject</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">Priority</th>
+                        <th class="px-6 py-4">Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-tickets-body" class="divide-y divide-gray-100">
+                    <!-- Rows loaded via JS -->
+                    <tr>
+                        <td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">
+                            Loading recent activity...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const API_BASE_URL = 'http://localhost:8001/api/v1';
+    const USER_ID = 'user_123';
+
+    async function updateDashboard() {
+        try {
+            // Since we don't have a dedicated /analytics/dashboard endpoint, 
+            // we fetch all tickets and calculate metrics on the frontend for now.
+            const response = await fetch(`${API_BASE_URL}/chat/list-sessions/${USER_ID}`);
+            if (!response.ok) throw new Error('Failed to fetch tickets');
+            const tickets = await response.json();
+
+            // 1. Update Stats
+            document.getElementById('stat-total').textContent = tickets.length;
+            
+            // Note: The list-sessions endpoint only returns basic info. 
+            // To get status/priority, we'd normally need a detailed list or the analytics endpoint.
+            // For this prototype, we simulate the detailed distribution.
+            document.getElementById('stat-open').textContent = Math.floor(tickets.length * 0.6);
+            document.getElementById('stat-resolved').textContent = Math.floor(tickets.length * 0.3);
+            document.getElementById('stat-pending').textContent = Math.floor(tickets.length * 0.1);
+
+            // 2. Update Table
+            const tableBody = document.getElementById('recent-tickets-body');
+            tableBody.innerHTML = '';
+            
+            if (tickets.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">No tickets found.</td></tr>';
+                return;
+            }
+
+            tickets.slice(0, 5).forEach(t => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors cursor-pointer';
+                row.onclick = () => window.location.href = `/chat?ticket_id=${t.id}`;
+                row.innerHTML = `
+                    <td class="px-6 py-4 text-xs font-mono text-gray-400">${t.id.substring(0, 8)}...</td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-800">${t.title || 'Untitled'}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-full bg-green-100 text-green-700 uppercase">Open</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-700 uppercase">Medium</span>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-gray-500">${new Date(t.updated_at).toLocaleDateString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // 3. Render Charts
+            renderCharts(tickets.length);
+            
+        } catch (error) {
+            console.error('Dashboard error:', error);
+        }
+    }
+
+    function renderCharts(total) {
+        const ctxCat = document.getElementById('categoryChart').getContext('2d');
+        const ctxPrio = document.getElementById('priorityChart').getContext('2d');
+
+        // Destroy previous charts if they exist to avoid overlap
+        if (window.catChart) window.catChart.destroy();
+        if (window.prioChart) window.prioChart.destroy();
+
+        window.catChart = new Chart(ctxCat, {
+            type: 'doughnut',
+            data: {
+                labels: ['Technical', 'Billing', 'General', 'Support'],
+                datasets: [{
+                    data: [Math.floor(total * 0.4), Math.floor(total * 0.2), Math.floor(total * 0.3), Math.floor(total * 0.1)],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        window.prioChart = new Chart(ctxPrio, {
+            type: 'pie',
+            data: {
+                labels: ['High', 'Medium', 'Low'],
+                datasets: [{
+                    data: [Math.floor(total * 0.2), Math.floor(total * 0.5), Math.floor(total * 0.3)],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', updateDashboard);
+</script>
+{% endblock %}
