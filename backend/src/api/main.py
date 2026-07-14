@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat, admin, agent
+from api import chat, admin, agent, tickets
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -39,6 +39,7 @@ templates = Jinja2Templates(directory="frontend/templates")
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(agent.router)
+app.include_router(tickets.router)
 
 # --- Frontend Routes ---
 
