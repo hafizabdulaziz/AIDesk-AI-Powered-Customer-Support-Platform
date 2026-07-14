@@ -87,32 +87,5 @@
     }
 </style>
 
-<script>
-    // Basic UI logic for Step 2
-    const chatMessages = document.getElementById('chat-messages');
-    const chatInput = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-
-    // This is a placeholder for Step 3. For Step 2, we just ensure the layout is correct.
-    function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Example of how bubbles will look (to be implemented in chat.js)
-    function createMessageBubble(text, isUser) {
-        const wrapper = document.createElement('div');
-        wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`;
-        
-        const bubble = document.createElement('div');
-        bubble.className = `max-w-[80%] p-3 rounded-2xl shadow-sm ${
-            isUser 
-            ? 'bg-blue-600 text-white rounded-tr-none' 
-            : 'bg-gray-200 text-gray-800 rounded-tl-none'
-        }`;
-        bubble.textContent = text;
-        
-        wrapper.appendChild(bubble);
-        return wrapper;
-    }
-</script>
+<script src="/static/js/chat.js"></script>
 {% endblock %}
