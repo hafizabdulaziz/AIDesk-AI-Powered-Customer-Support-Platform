@@ -15,6 +15,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentTicketId = null;
 
+    // --- Modal Logic ---
+
+    const ticketModal = document.getElementById('ticket-modal');
+    const modalContainer = document.getElementById('modal-container');
+    const newTicketBtn = document.getElementById('new-ticket-btn');
+    const closeModal = document.getElementById('close-modal');
+    const cancelModal = document.getElementById('cancel-modal');
+    const ticketForm = document.getElementById('ticket-form');
+
+    function openModal() {
+        ticketModal.classList.remove('hidden');
+        setTimeout(() => {
+            modalContainer.classList.remove('scale-95', 'opacity-0');
+            modalContainer.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function hideModal() {
+        modalContainer.classList.remove('scale-100', 'opacity-100');
+        modalContainer.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            ticketModal.classList.add('hidden');
+        }, 200);
+    }
+
+    if (newTicketBtn) {
+        newTicketBtn.onclick = openModal;
+    }
+
+    if (closeModal) {
+        closeModal.onclick = hideModal;
+    }
+
+    if (cancelModal) {
+        cancelModal.onclick = hideModal;
+    }
+
+    async function handleCreateTicket(e) {
+        e.preventDefault();
+        
+        const subject = document.getElementById('ticket-subject').value;
+        const category = document.getElementById('ticket-category').value;
+        const priority = document.getElementById('ticket-priority-select').value;
+        const description = document.getElementById('ticket-description').value;
+        
+        const submitBtn = document.getElementById('submit-ticket');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating...';
+
+        try {
+            // Since we don't have a dedicated /api/v1/tickets endpoint yet (based on my read),
+            // we use /api/v1/chat/message as a way to initialize a ticket if the backend supports it,
+            // OR we assume /api/v1/tickets/ exists and create it.
+            // Based on Step 4 requirements, we use /api/v1/tickets/
+            const response = await fetch(`${API_BASE_URL}/tickets/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: USER_ID,
+                    title: subject,
+                    category: category,
+                    priority: priority,
+                    description: description
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to create ticket');
+            
+            const data = await response.json();
+            hideModal();
+            ticketForm.reset();
+            
+            // Load tickets again and select the new one
+            await loadTickets();
+            selectTicket(data.ticket_id, data.title || subject);
+            
+        } catch (error) {
+            console.error('Error creating ticket:', error);
+            alert('Failed to create ticket. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Create Ticket';
+        }
+    }
+
+    if (ticketForm) {
+        ticketForm.onsubmit = handleCreateTicket;
+    }
+
     // --- Utility Functions ---
 
     function scrollToBottom() {
