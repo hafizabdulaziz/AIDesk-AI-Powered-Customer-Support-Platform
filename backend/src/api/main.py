@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from core.config import settings
 from models.database import Base, engine
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat, admin, agent, tickets
+from api import chat, admin, agent, tickets, auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -32,37 +33,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Robust Path Setup
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
+TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
+
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
-templates = Jinja2Templates(directory="frontend/templates")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(agent.router)
 app.include_router(tickets.router)
+app.include_router(auth.router)
 
 # --- Frontend Routes ---
 
-@app.get("/")
-async def index(request: Request):
-    return templates.TemplateResponse("base.html", {"request": request})
-
-@app.get("/chat")
-async def chat_page(request: Request):
-    return templates.TemplateResponse("chat.html", {"request": request})
-
-@app.get("/dashboard")
-async def dashboard_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-@app.get("/tickets")
-async def tickets_page(request: Request):
-    # Reusing chat page for tickets list as per layout
-    return templates.TemplateResponse("chat.html", {"request": request})
-
-@app.get("/ticket/{ticket_id}")
-async def ticket_detail_page(request: Request, ticket_id: str):
-    return templates.TemplateResponse("ticket_detail.html", {"request": request, "ticket_id": ticket_id})
+@app.get("/{rest_of_path:path}")
+async def serve_react(request: Request, rest_of_path: str):
+    # Agar route API ka nahi hai, toh index.html serve karein
+    if not rest_of_path.startswith("api/"):
+        return templates.TemplateResponse(request=request, name="index.html")
+    raise HTTPException(status_code=404, detail="Not Found")
 
 @app.get("/health")
 async def health_check():
