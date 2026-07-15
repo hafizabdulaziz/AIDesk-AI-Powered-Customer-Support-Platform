@@ -123,13 +123,12 @@ async def send_message(payload: MessageCreate, db: Session = Depends(get_db)):
             ticket = new_ticket
             ticket_id = ticket.id
         
-        # 2. Save user message to database with image support
+        # 2. Save user message to database
         user_msg = Message(
             id=str(uuid.uuid4()),
             ticket_id=ticket_id,
             sender=MessageSender.USER,
-            content=payload.content,
-            image=payload.image
+            content=payload.content
         )
         db.add(user_msg)
         db.commit()
