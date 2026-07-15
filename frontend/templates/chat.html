@@ -43,17 +43,20 @@
         </div>
     </main>
 </div>
-{% endblock %}
+
+<style>
+    /* Custom scrollbar for a cleaner look */
+    #chat-messages::-webkit-scrollbar {
         width: 6px;
     }
-    #chat-messages::-webkit-scrollbar-track, #tickets-list::-webkit-scrollbar-track {
+    #chat-messages::-webkit-scrollbar-track {
         background: transparent;
     }
-    #chat-messages::-webkit-scrollbar-thumb, #tickets-list::-webkit-scrollbar-thumb {
+    #chat-messages::-webkit-scrollbar-thumb {
         background: #d1d5db;
         border-radius: 10px;
     }
-    #chat-messages::-webkit-scrollbar-thumb:hover, #tickets-list::-webkit-scrollbar-thumb:hover {
+    #chat-messages::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
     }
 
