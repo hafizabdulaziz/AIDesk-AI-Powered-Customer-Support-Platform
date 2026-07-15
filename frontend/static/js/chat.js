@@ -95,5 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    chatForm.onsubmit = sendMessage;
+    // ...
+    chatForm.addEventListener('submit', sendMessage);
+    chatInput.focus();
 });
