@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -12,7 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'test.db'}"
     
     # AI / LLM
-    OPENAI_API_KEY: str 
+    OPENAI_API_KEY: Optional[str] = None 
     LLM_MODEL: str = "gemini-1.5-flash"
     EMBEDDING_MODEL: str = "text-embedding-004"
     API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
