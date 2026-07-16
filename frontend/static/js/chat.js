@@ -1,101 +1,89 @@
-const API_BASE_URL = 'http://localhost:8001/api/v1';
-const USER_ID = 'user_' + Math.random().toString(36).substr(2, 9); // Random user ID for persistent session
+// Chat interaction logic
+const API_BASE_URL = '/api/v1';
 
-document.addEventListener('DOMContentLoaded', () => {
-    const chatMessages = document.getElementById('chat-messages');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const welcomeState = document.getElementById('welcome-state');
+// Mock user_id for now
+const USER_ID = 'user_123';
 
-    // For simplicity in direct chat, we don't have tickets, 
-    // but the backend API still requires a ticket_id.
-    // We'll auto-generate one for this user's session.
-    let currentTicketId = null;
-
-    async function ensureTicket() {
-        if (currentTicketId) return currentTicketId;
-        
-        // This is a bit of a hack to get a ticket ID without explicit creation
-        // The /message endpoint creates a ticket if ticket_id is null.
-        // So we don't strictly need a separate initialization.
-        return null;
+async function fetchTickets() {
+    console.log('Fetching sessions...');
+    // Renamed endpoint to sessions as requested
+    try {
+        const response = await fetch(`${API_BASE_URL}/chat/list-sessions/${USER_ID}`);
+        if (!response.ok) throw new Error('Failed to fetch sessions');
+        const sessions = await response.json();
+        renderSessionList(sessions);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
     }
+}
 
-    // --- Utility Functions ---
+function renderSessionList(sessions) {
+    const list = document.getElementById('sessionList');
+    list.innerHTML = sessions.map(session => `
+        <div class="p-3 bg-white rounded-lg shadow-sm mb-2 cursor-pointer hover:bg-blue-50" onclick="loadChat('${session.id}')">
+            <h4 class="font-bold text-sm truncate">Chat ${session.id.slice(0,8)}</h4>
+        </div>
+    `).join('');
+}
 
-    function scrollToBottom() {
+async function loadChat(sessionId) {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = 'Loading...';
+    try {
+        const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`);
+        const messages = await response.json();
+        chatMessages.innerHTML = messages.map(msg => `
+            <div class="flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'} mb-4">
+                <div class="max-w-[70%] p-3 rounded-lg ${msg.sender === 'USER' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}">
+                    ${msg.content}
+                </div>
+            </div>
+        `).join('');
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    } catch (e) {
+        chatMessages.innerHTML = 'Error loading chat.';
     }
+}
 
-    function appendMessage(text, isUser) {
-        if (welcomeState) welcomeState.classList.add('hidden');
+// Send Message Logic
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+    if (!content) return;
+
+    // UI Update immediately
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML += `
+        <div class="flex justify-end mb-4">
+            <div class="max-w-[70%] p-3 rounded-lg bg-blue-600 text-white">
+                ${content}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // Post message
+        const response = await fetch(`${API_BASE_URL}/chat/message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticket_id: null, content, user_id: USER_ID })
+        });
         
-        const wrapper = document.createElement('div');
-        wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in`;
+        if (!response.ok) throw new Error('Failed to send');
         
-        const bubble = document.createElement('div');
-        bubble.className = `max-w-[80%] p-3 rounded-2xl shadow-sm ${
-            isUser 
-            ? 'bg-blue-600 text-white rounded-tr-none' 
-            : 'bg-gray-200 text-gray-800 rounded-tl-none'
-        }`;
-        bubble.textContent = text;
-        
-        wrapper.appendChild(bubble);
-        chatMessages.appendChild(wrapper);
-        scrollToBottom();
+        // Refresh messages
+        // In real app, we should append the new AI message instead of reload
+    } catch (e) {
+        console.error('Error:', e);
     }
+}
 
-    // --- Message Logic ---
-
-    async function sendMessage(e) {
-        e.preventDefault();
-        const content = chatInput.value.trim();
-        if (!content) return;
-
-        appendMessage(content, true);
-        chatInput.value = '';
-        
-        // Show a "typing" indicator
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'flex justify-start mb-4';
-        typingDiv.innerHTML = `<div class="bg-gray-200 text-gray-800 p-3 rounded-2xl rounded-tl-none shadow-sm animate-pulse">AI is thinking...</div>`;
-        typingDiv.id = 'typing-indicator';
-        chatMessages.appendChild(typingDiv);
-        scrollToBottom();
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/chat/message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ticket_id: currentTicketId, // Backend handles null to create new ticket
-                    user_id: USER_ID,
-                    content: content
-                })
-            });
-
-            if (!response.ok) throw new Error('Failed to send message');
-            
-            const data = await response.json();
-            
-            // If this was our first message, store the ticket ID
-            if (!currentTicketId) {
-                currentTicketId = data.ticket_id;
-            }
-            
-            // Remove typing indicator and add real response
-            document.getElementById('typing-indicator')?.remove();
-            appendMessage(data.response, false);
-            
-        } catch (error) {
-            console.error('Error sending message:', error);
-            document.getElementById('typing-indicator')?.remove();
-            appendMessage('Sorry, something went wrong. Please try again.', false);
-        }
-    }
-
-    // ...
-    chatForm.addEventListener('submit', sendMessage);
-    chatInput.focus();
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
 });
+
+// Initial load
+fetchTickets();
