@@ -1,34 +1,67 @@
-# AIDesk - AI Customer Support Platform
+# AIDesk: AI-Powered Customer Support Platform
 
-## Overview
-AIDesk is a modern, production-ready AI Customer Support Platform built with FastAPI, PostgreSQL/SQLite, ChromaDB, and LangChain. It provides an intelligent, session-based chat experience.
+AIDesk is an advanced, production-ready AI Customer Support Platform designed to streamline interactions between customers and support agents using LLMs.
 
-## Tech Stack
-- **Backend:** FastAPI, SQLAlchemy, SQLite (for development), Ollama/LangChain.
-- **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript.
+## 🚀 Features
+- **Intelligent RAG:** Grounded responses using ChromaDB vector store.
+- **Stateful Chat:** Real-time session management using SQLite.
+- **Admin Dashboard:** Manage tickets, user support, and configuration.
+- **Modern UI:** Tailwind CSS powered, responsive frontend with Vanilla JS.
+- **Scalable Backend:** FastAPI structure with clear separation of concerns (Core, API, Services, Models).
 
-## Features
-- **Session-based Chat:** Manage multiple chat sessions seamlessly.
-- **Intelligent AI Assistant:** Powered by Ollama (llama3.2), tailored for concise support.
-- **RAG-enabled:** Grounded responses based on knowledge base documentation.
-- **Responsive UI:** Modern, mobile-first design.
+## 🛠 Tech Stack
+- **Backend:** Python 3.13+, FastAPI, SQLAlchemy, SQLite, ChromaDB.
+- **Frontend:** HTML/CSS/JS, Vite (for asset bundling), Tailwind CSS.
+- **AI/ML:** LangChain, SentenceTransformers (for embeddings), Ollama/Gemini integration.
 
-## Setup Instructions
-
-### 1. Backend
-```bash
-cd backend
-python -m venv venv
-# Activate venv
-pip install -r requirements.txt
-# Initialize Database
-python init_db.py
-# Run
-python src/api/main.py
+## 📂 Project Structure
+```text
+ai-customer-support-platform/
+├── backend/
+│   ├── src/
+│   │   ├── api/        # API Endpoints (admin, chat, tickets)
+│   │   ├── core/       # Configurations
+│   │   ├── models/     # Database schemas
+│   │   └── services/   # AI Agent, RAG, VectorStore
+│   ├── tests/          # Integration and unit tests
+│   └── tools/          # System tools & diagnostics
+├── frontend/
+│   ├── src/            # Frontend assets
+│   ├── templates/      # Jinja2/HTML templates
+│   └── static/         # Compiled assets
+└── specs/              # Technical specifications & ADRs
 ```
 
-### 2. Frontend
-No build step required; frontend files are served by FastAPI directly from the `frontend/` directory.
+## ⚙️ Setup & Installation
 
-## Known Issues
-- **Context Handling:** Currently optimized for English. Roman Urdu/Local context handling is a roadmap item.
+### Prerequisites
+- Python 3.13+
+- Node.js (for frontend build)
+- Ollama (running locally)
+
+### Backend Setup
+1. `cd backend`
+2. `python -m venv venv`
+3. `venv\Scripts\activate` (Windows)
+4. `pip install -r requirements.txt`
+5. `python init_db.py`
+6. `python src/api/main.py`
+
+### Frontend Setup
+1. `cd frontend`
+2. `npm install`
+3. `npm run build` (Generates assets for backend)
+
+## 💡 Usage
+1. Start Backend: `start_aidesk.bat`
+2. Access Dashboard: `http://localhost:8000`
+
+## 📋 ADRs & Documentation
+Comprehensive documentation, ADRs, and task lists can be found in the `specs/` directory.
+
+## 🛡️ Security & Privacy
+- Secrets managed via `.env` files.
+- Audit logs enabled in admin panel.
+
+---
+*Developed by Abdul Aziz | Panaversity Agentic AI Course*
