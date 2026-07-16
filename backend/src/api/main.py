@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from core.config import settings
 from models.database import Base, engine
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -12,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat
+from api import chat, admin, agent, tickets, auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -24,13 +27,36 @@ app = FastAPI(
 # Configure CORS to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Robust Path Setup
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
+TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
+
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
 app.include_router(chat.router)
+app.include_router(admin.router)
+app.include_router(agent.router)
+app.include_router(tickets.router)
+app.include_router(auth.router)
+
+# --- Frontend Routes ---
+
+@app.get("/{rest_of_path:path}")
+async def serve_react(request: Request, rest_of_path: str):
+    # Agar route API ka nahi hai, toh chat.html serve karein
+    if not rest_of_path.startswith("api/"):
+        return templates.TemplateResponse(request=request, name="chat.html")
+    raise HTTPException(status_code=404, detail="Not Found")
 
 @app.get("/health")
 async def health_check():
@@ -49,3 +75,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+
