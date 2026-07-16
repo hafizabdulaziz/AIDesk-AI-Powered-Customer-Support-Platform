@@ -1,67 +1,74 @@
-# AIDesk: AI-Powered Customer Support Platform
+# AIDesk: Professional AI-Powered Customer Support Platform
 
-AIDesk is an advanced, production-ready AI Customer Support Platform designed to streamline interactions between customers and support agents using LLMs.
+[![Agentic AI](https://img.shields.io/badge/Course-Agentic%20AI-blue)]()
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-green)]()
+[![Frontend](https://img.shields.io/badge/Frontend-TailwindCSS-orange)]()
 
-## 🚀 Features
-- **Intelligent RAG:** Grounded responses using ChromaDB vector store.
-- **Stateful Chat:** Real-time session management using SQLite.
-- **Admin Dashboard:** Manage tickets, user support, and configuration.
-- **Modern UI:** Tailwind CSS powered, responsive frontend with Vanilla JS.
-- **Scalable Backend:** FastAPI structure with clear separation of concerns (Core, API, Services, Models).
+---
+
+## 📖 Overview
+**AIDesk** is a high-performance, production-ready AI Customer Support platform. It is engineered to bridge the gap between complex user queries and automated, grounded support. Using the latest **Agentic AI** principles, AIDesk delivers context-aware, stateful, and secure customer support.
+
+## 🌟 Key Features
+- **Context-Aware RAG:** Uses ChromaDB and SentenceTransformers to provide accurate, documentation-based answers.
+- **Stateful Conversational Engine:** Built-in session management using SQLite to track user journeys.
+- **Admin Command Center:** A specialized dashboard to manage tickets, analyze support performance, and monitor agent status.
+- **Modern, Reactive UI:** A mobile-first interface designed with Tailwind CSS, ensuring smooth customer interaction.
+- **Modular Backend Architecture:** A clean, scalable FastAPI implementation optimized for low-latency AI inference.
 
 ## 🛠 Tech Stack
-- **Backend:** Python 3.13+, FastAPI, SQLAlchemy, SQLite, ChromaDB.
-- **Frontend:** HTML/CSS/JS, Vite (for asset bundling), Tailwind CSS.
-- **AI/ML:** LangChain, SentenceTransformers (for embeddings), Ollama/Gemini integration.
+| Tier | Technology |
+| :--- | :--- |
+| **Backend** | Python 3.13+, FastAPI, SQLAlchemy |
+| **Frontend** | Vanilla JS, Tailwind CSS, Vite |
+| **AI/ML** | LangChain, ChromaDB, SentenceTransformers |
+| **Database** | SQLite (Production-ready with SQLAlchemy ORM) |
 
-## 📂 Project Structure
+## 📂 Architecture
 ```text
 ai-customer-support-platform/
 ├── backend/
 │   ├── src/
-│   │   ├── api/        # API Endpoints (admin, chat, tickets)
-│   │   ├── core/       # Configurations
-│   │   ├── models/     # Database schemas
-│   │   └── services/   # AI Agent, RAG, VectorStore
-│   ├── tests/          # Integration and unit tests
-│   └── tools/          # System tools & diagnostics
+│   │   ├── api/        # RESTful API endpoints for Auth, Chat, Tickets
+│   │   ├── core/       # Global configuration & security middleware
+│   │   ├── models/     # Database schemas & ORM entities
+│   │   └── services/   # The AI Agent, RAG engine, and VectorStore logic
+│   ├── tests/          # Comprehensive Integration/Unit tests
+│   └── tools/          # System diagnostics & stress testing
 ├── frontend/
-│   ├── src/            # Frontend assets
-│   ├── templates/      # Jinja2/HTML templates
-│   └── static/         # Compiled assets
-└── specs/              # Technical specifications & ADRs
+│   ├── src/            # Source TypeScript/JS/CSS assets
+│   ├── templates/      # Jinja2 templates for Admin/Chat UI
+│   └── static/         # Compiled production assets
+└── specs/              # ADRs, Research, and Technical Documentation
 ```
 
-## ⚙️ Setup & Installation
+## ⚙️ Deployment & Setup
+### 1. Prerequisites
+- Python 3.13+ installed.
+- Node.js installed for frontend build.
+- [Ollama](https://ollama.ai/) running locally for embeddings/inference.
 
-### Prerequisites
-- Python 3.13+
-- Node.js (for frontend build)
-- Ollama (running locally)
+### 2. Backend Initialization
+```bash
+cd backend
+python -m venv venv
+# Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python init_db.py  # Initialize DB
+python src/api/main.py
+```
 
-### Backend Setup
-1. `cd backend`
-2. `python -m venv venv`
-3. `venv\Scripts\activate` (Windows)
-4. `pip install -r requirements.txt`
-5. `python init_db.py`
-6. `python src/api/main.py`
+### 3. Frontend Compilation
+```bash
+cd frontend
+npm install
+npm run build
+```
 
-### Frontend Setup
-1. `cd frontend`
-2. `npm install`
-3. `npm run build` (Generates assets for backend)
-
-## 💡 Usage
-1. Start Backend: `start_aidesk.bat`
-2. Access Dashboard: `http://localhost:8000`
-
-## 📋 ADRs & Documentation
-Comprehensive documentation, ADRs, and task lists can be found in the `specs/` directory.
-
-## 🛡️ Security & Privacy
-- Secrets managed via `.env` files.
-- Audit logs enabled in admin panel.
+## 📈 Roadmap & Future Scope
+- [ ] Integration with GPT-4 / Claude API.
+- [ ] Real-time WebSocket-based chat.
+- [ ] Advanced User Analytics & Reporting.
 
 ---
-*Developed by Abdul Aziz | Panaversity Agentic AI Course*
+*Built with passion by Abdul Aziz.*
