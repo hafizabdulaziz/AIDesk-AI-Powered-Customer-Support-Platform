@@ -3,30 +3,35 @@
 {% block title %}Chat - AIDesk{% endblock %}
 
 {% block content %}
-<div class="flex h-[calc(100vh-64px)] overflow-hidden">
-    <!-- Left Sidebar: Session List -->
-    <aside class="w-64 bg-gray-100 border-r border-gray-200 flex flex-col">
+<div class="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+    <!-- Sidebar: Hidden on small screens, toggleable -->
+    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
         <div class="p-4 border-b border-gray-200">
-            <button id="newSessionBtn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition" onclick="startNewChat()">
+            <button class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition" onclick="startNewChat()">
                 <i class="fas fa-plus mr-2"></i> New Chat
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-4" id="sessionList">
-            <!-- Chat sessions will be injected here -->
+            <!-- Sessions -->
         </div>
     </aside>
 
     <!-- Main Chat Area -->
     <main class="flex-1 flex flex-col bg-white">
-        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chatMessages">
-            <!-- Messages will be injected here -->
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" id="chatMessages">
+            <!-- Messages -->
         </div>
         
         <!-- Input Box -->
         <div class="p-4 border-t border-gray-200">
-            <div class="flex gap-2">
-                <input type="text" id="messageInput" class="flex-1 border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your message...">
-                <button id="sendBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+            <div class="flex gap-2 max-w-4xl mx-auto">
+                <input type="text" id="messageInput" class="flex-1 border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message...">
+                <button id="sendBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -35,10 +40,8 @@
 </div>
 
 <script>
-    function startNewChat() {
-        // Logic for new chat session
-        console.log('Starting new chat...');
-        window.location.reload();
-    }
+    function startNewChat() { window.location.reload(); }
+    // Utility to show loading
+    function toggleLoading(show) { document.getElementById('loading').classList.toggle('hidden', !show); }
 </script>
 {% endblock %}
