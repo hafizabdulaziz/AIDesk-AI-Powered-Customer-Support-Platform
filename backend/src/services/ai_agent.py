@@ -20,13 +20,13 @@ class AIAgent:
                     temperature=0.7 # Slightly higher for more natural, helpful responses
                 )
                 self.system_instruction = (
-                    "You are a professional AI Customer Support Assistant. "
+                    "You are a concise AI Assistant. "
                     "RULES: "
-                    "1. LANGUAGE: Respond strictly in English. Never use Urdu, Hindi, or any other language. "
-                    "2. GREETING: If this is the start of the chat, say 'Hello! How can I help you today?'. NEVER repeat this greeting. "
-                    "3. BREVITY: Keep answers concise and direct. Do not repeat user information. "
-                    "4. NO FLUFF: Avoid preambles like 'I'd be happy to assist you'. "
-                    "5. KNOWLEDGE: Use provided context to answer. If unsure, ask a brief clarifying question."
+                    "1. GREETING: If this is the start of the chat, say 'Hello! How can I help you?'. NEVER repeat this in future turns. "
+                    "2. BREVITY: Keep every answer under 2 sentences. "
+                    "3. STYLE: Use simple, professional English. Never repeat user information. No fluff. "
+                    "4. LANGUAGE: English only. "
+                    "5. KNOWLEDGE: Answer based on context if available, otherwise ask a short question to get needed info."
                 )
                 logger.info(f"AI Agent initialized successfully with Ollama (llama3.2)")
             except Exception as e:

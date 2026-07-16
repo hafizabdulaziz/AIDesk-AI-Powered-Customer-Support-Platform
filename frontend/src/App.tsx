@@ -5,7 +5,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 
-const API_BASE_URL = 'http://localhost:8001/api/v1';
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 interface Message {
   id: string;
@@ -43,11 +43,16 @@ function App() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Auth attempt started...");
+    console.log("Mode:", isLoginMode ? "Login" : "Signup");
+    console.log("Endpoint:", `${API_BASE_URL}${isLoginMode ? '/auth/login' : '/auth/signup'}`);
+    
     setError(null);
     const endpoint = isLoginMode ? '/auth/login' : '/auth/signup';
     const body = isLoginMode ? { email, password } : { email, password, name };
     
     try {
+        console.log("Sending request to:", `${API_BASE_URL}${endpoint}`);
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -55,6 +60,7 @@ function App() {
         });
 
         const data = await response.json();
+        console.log("Response received:", data);
         if (!response.ok) throw new Error(data.detail || 'Auth failed');
 
         if (isLoginMode) {
@@ -65,6 +71,7 @@ function App() {
             setIsLoginMode(true);
         }
     } catch (err: any) {
+        console.error("Auth error:", err);
         showError(err.message);
     }
   };
@@ -183,8 +190,8 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
-      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} bg-white dark:bg-slate-900 border-r dark:border-slate-800 transition-all duration-300 flex flex-col overflow-hidden`}>
+    <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
+      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} flex-shrink-0 bg-white dark:bg-slate-900 border-r dark:border-slate-800 transition-all duration-300 flex flex-col overflow-hidden`}>
         <div className="p-4 flex items-center justify-between min-w-[18rem]">
           <div className="font-bold text-lg flex items-center gap-2"><Sparkles className="text-blue-500" /> AI Support</div>
           <button onClick={() => setIsSidebarOpen(false)} className="hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-md"><X className="w-5 h-5" /></button>
