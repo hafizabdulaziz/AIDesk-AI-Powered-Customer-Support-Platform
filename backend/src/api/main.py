@@ -53,9 +53,9 @@ app.include_router(auth.router)
 
 @app.get("/{rest_of_path:path}")
 async def serve_react(request: Request, rest_of_path: str):
-    # Agar route API ka nahi hai, toh index.html serve karein
+    # Agar route API ka nahi hai, toh chat.html serve karein
     if not rest_of_path.startswith("api/"):
-        return templates.TemplateResponse(request=request, name="index.html")
+        return templates.TemplateResponse(request=request, name="chat.html")
     raise HTTPException(status_code=404, detail="Not Found")
 
 @app.get("/health")
