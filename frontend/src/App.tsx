@@ -5,7 +5,8 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// Use relative path for production (Vercel) and environment variable for local dev override
+const API_BASE_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8001/api/v1' : '/api/v1');
 
 interface Message {
   id: string;
@@ -183,7 +184,13 @@ function App() {
           <button type="button" onClick={() => setIsLoginMode(!isLoginMode)} className="w-full text-center text-sm text-blue-500 hover:underline">
             {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Login'}
           </button>
-          {error && <p className="text-red-500 text-sm text-center font-medium bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">{error}</p>}
+          {error && (
+            <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4">
+                <p className="text-red-500 text-sm text-center font-medium bg-red-100 dark:bg-red-900/30 p-3 rounded-lg shadow-lg border border-red-200 dark:border-red-800">
+                    {error}
+                </p>
+            </div>
+        )}
         </form>
       </div>
     );
