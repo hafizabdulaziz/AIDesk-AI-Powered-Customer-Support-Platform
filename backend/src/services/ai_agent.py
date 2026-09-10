@@ -20,17 +20,15 @@ class AIAgent:
                     temperature=0.7 # Slightly higher for more natural, helpful responses
                 )
                 self.system_instruction = (
-                    "You are a world-class, professional, and highly empathetic AI Customer Support Specialist. "
-                    "Your goal is to provide the best possible solutions to users, behaving like a top-tier AI (similar to GPT-4 or Gemini). "
-                    "CORE OPERATIONAL GUIDELINES: "
-                    "1. BE HELPFUL & DETAILED: Don't just give one-word answers. Explain the 'why' and 'how'. Provide step-by-step guides if needed. "
-                    "2. GROUNDING: Use the provided 'Context' as your primary source of truth. If the answer is in the context, prioritize it. "
-                    "3. INTELLIGENT GAP FILLING: If the context is missing some detail but you have general professional knowledge to make the answer complete and helpful, do so, but clearly distinguish between provided facts and general advice. "
-                    "4. EMPATHY: Acknowledge the user's feelings. Use phrases like 'I understand how frustrating this can be' or 'I'm happy to help you resolve this'. "
-                    "5. HANDOFF: If the user is extremely frustrated, asks for a human, or if the problem is beyond AI capability, include '[HANDOFF]' in your response. "
-                    "6. FORMATTING: Use Markdown (bullet points, bold text, headers) to make responses easy to read."
+                    "You are a concise AI Assistant. "
+                    "RULES: "
+                    "1. GREETING: If this is the start of the chat, say 'Hello! How can I help you?'. NEVER repeat this in future turns. "
+                    "2. BREVITY: Keep every answer under 2 sentences. "
+                    "3. STYLE: Use simple, professional English. Never repeat user information. No fluff. "
+                    "4. LANGUAGE: English only. "
+                    "5. KNOWLEDGE: Answer based on context if available, otherwise ask a short question to get needed info."
                 )
-                logger.info("AI Agent initialized successfully with Ollama (llama3.2)")
+                logger.info(f"AI Agent initialized successfully with Ollama (llama3.2)")
             except Exception as e:
                 logger.error(f"Failed to initialize Ollama: {str(e)}")
                 self.llm = None
@@ -101,7 +99,7 @@ class AIAgent:
         if settings.MOCK_MODE:
             if "hello" in query.lower(): 
                 answer = "Hello! How can I help?"
-            elif "human" in query.lower(): 
+            elif any(word in query.lower() for word in ["human", "manager", "agent", "person"]): 
                 answer = "Sure, transferring you now. [HANDOFF]"
                 needs_handoff = True
             else:
@@ -125,7 +123,9 @@ class AIAgent:
             prompt_text = (
                 f"Context from Knowledge Base:\n{context_text}\n\n"
                 f"User Query: {query}\n\n"
-                "Please provide a detailed, professional, and helpful response:"
+                "Please provide a detailed, professional, and helpful response. "
+                "CRITICAL: If the user explicitly asks for a human, manager, or is extremely angry, "
+                "you MUST include the exact tag '[HANDOFF]' at the end of your response."
             )
 
             if image:
@@ -140,8 +140,15 @@ class AIAgent:
             try:
                 response = self.llm.invoke(messages)
                 answer = response.content
-                if "[HANDOFF]" in answer or "don't have that information" in answer.lower():
+                
+                # Improved Handoff Detection
+                handoff_keywords = ["manager", "human", "agent", "person", "representative", "supervisor"]
+                user_wants_human = any(kw in query.lower() for kw in handoff_keywords)
+                ai_triggered_handoff = "[HANDOFF]" in answer
+                
+                if user_wants_human or ai_triggered_handoff:
                     needs_handoff = True
+                    
             except Exception as e:
                 err_msg = str(e).lower()
                 if "connection" in err_msg or "refused" in err_msg:

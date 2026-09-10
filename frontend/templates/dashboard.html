@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - AIDesk{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <h1 class="text-2xl font-bold mb-6">Admin Dashboard</h1>
+
+    <!-- Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+            <h3 class="text-gray-500 text-sm">Total Tickets</h3>
+            <p class="text-2xl font-bold" id="totalTickets">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+            <h3 class="text-gray-500 text-sm">Open</h3>
+            <p class="text-2xl font-bold" id="openTickets">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-300">
+            <h3 class="text-gray-500 text-sm">In Progress</h3>
+            <p class="text-2xl font-bold" id="progressTickets">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+            <h3 class="text-gray-500 text-sm">Resolved</h3>
+            <p class="text-2xl font-bold" id="resolvedTickets">0</p>
+        </div>
+    </div>
+
+    <!-- Recent Tickets Table -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-lg font-bold mb-4">Recent Tickets</h2>
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b">
+                    <th class="pb-2">Subject</th>
+                    <th class="pb-2">Category</th>
+                    <th class="pb-2">Status</th>
+                    <th class="pb-2">Date</th>
+                </tr>
+            </thead>
+            <tbody id="ticketsTableBody">
+                <!-- Rows injected here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function loadDashboard() {
+        try {
+            const response = await fetch('/api/v1/tickets/');
+            const tickets = await response.json();
+            
+            // Update Metrics
+            document.getElementById('totalTickets').innerText = tickets.length;
+            document.getElementById('openTickets').innerText = tickets.filter(t => t.status === 'OPEN').length;
+            document.getElementById('progressTickets').innerText = tickets.filter(t => t.status === 'PENDING_HUMAN').length;
+            document.getElementById('resolvedTickets').innerText = tickets.filter(t => t.status === 'AI_RESOLVED' || t.status === 'CLOSED').length;
+
+            // Update Table
+            const tbody = document.getElementById('ticketsTableBody');
+            tbody.innerHTML = tickets.slice(0, 5).map(t => `
+                <tr class="border-b">
+                    <td class="py-3">${t.title}</td>
+                    <td class="py-3">General</td>
+                    <td class="py-3"><span class="px-2 py-1 bg-gray-200 rounded text-xs">${t.status}</span></td>
+                    <td class="py-3">${new Date(t.created_at).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('Failed to load dashboard', e);
+        }
+    }
+    loadDashboard();
+</script>
+{% endblock %}
