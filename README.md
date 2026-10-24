@@ -1,74 +1,95 @@
-# AIDesk: Professional AI-Powered Customer Support Platform
+# AIDesk: AI-Powered Customer Support Platform
 
-[![Agentic AI](https://img.shields.io/badge/Course-Agentic%20AI-blue)]()
-[![Backend](https://img.shields.io/badge/Backend-FastAPI-green)]()
-[![Frontend](https://img.shields.io/badge/Frontend-TailwindCSS-orange)]()
+[![Course: Agentic AI](https://img.shields.io/badge/Course-Agentic%20AI-blue)](#)
+[![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-green)](#)
+[![Frontend: TailwindCSS](https://img.shields.io/badge/Frontend-TailwindCSS-orange)](#)
 
----
+An AI-driven customer support platform engineered to resolve customer inquiries through retrieval-grounded conversation and administrative ticketing workflows.
 
-## 📖 Overview
-**AIDesk** is a high-performance, production-ready AI Customer Support platform. It is engineered to bridge the gap between complex user queries and automated, grounded support. Using the latest **Agentic AI** principles, AIDesk delivers context-aware, stateful, and secure customer support.
+## Overview
 
-## 🌟 Key Features
-- **Context-Aware RAG:** Uses ChromaDB and SentenceTransformers to provide accurate, documentation-based answers.
-- **Stateful Conversational Engine:** Built-in session management using SQLite to track user journeys.
-- **Admin Command Center:** A specialized dashboard to manage tickets, analyze support performance, and monitor agent status.
-- **Modern, Reactive UI:** A mobile-first interface designed with Tailwind CSS, ensuring smooth customer interaction.
-- **Modular Backend Architecture:** A clean, scalable FastAPI implementation optimized for low-latency AI inference.
+AIDesk combines a FastAPI backend with a retrieval-augmented generation (RAG) pipeline and a responsive frontend interface. Built around agentic AI design principles, it delivers context-aware, stateful dialogue grounded in documentation, paired with administrative oversight tools for ticket management.
 
-## 🛠 Tech Stack
-| Tier | Technology |
+## Key Features
+
+- **Context-Aware Retrieval (RAG)**: Integrates ChromaDB and SentenceTransformers to retrieve domain documentation and produce grounded, factual support responses.
+- **Stateful Conversation Engine**: Maintains conversational context across multi-turn exchanges via SQLite session persistence.
+- **Admin Management Dashboard**: Provides administrative views to monitor ticket lifecycles, inspect support interactions, and track agent status.
+- **Responsive User Interface**: Mobile-friendly, reactive interface built with Tailwind CSS and Vite.
+- **Modular Service Layout**: Decoupled FastAPI architecture separating API routing, core security, data schemas, and vector store operations.
+
+## Technology Stack
+
+| Layer | Technologies |
 | :--- | :--- |
-| **Backend** | Python 3.13+, FastAPI, SQLAlchemy |
-| **Frontend** | Vanilla JS, Tailwind CSS, Vite |
-| **AI/ML** | LangChain, ChromaDB, SentenceTransformers |
-| **Database** | SQLite (Production-ready with SQLAlchemy ORM) |
+| **Backend** | Python 3.13+, FastAPI, SQLAlchemy ORM |
+| **Frontend** | Vanilla JavaScript, Tailwind CSS, Vite |
+| **AI / Retrieval** | LangChain, ChromaDB, SentenceTransformers |
+| **Database** | SQLite (managed through SQLAlchemy) |
 
-## 📂 Architecture
+## Architecture & Directory Structure
+
 ```text
 ai-customer-support-platform/
 ├── backend/
 │   ├── src/
-│   │   ├── api/        # RESTful API endpoints for Auth, Chat, Tickets
+│   │   ├── api/        # RESTful API endpoints for Auth, Chat, and Tickets
 │   │   ├── core/       # Global configuration & security middleware
 │   │   ├── models/     # Database schemas & ORM entities
-│   │   └── services/   # The AI Agent, RAG engine, and VectorStore logic
-│   ├── tests/          # Comprehensive Integration/Unit tests
-│   └── tools/          # System diagnostics & stress testing
+│   │   └── services/   # AI agent logic, RAG pipelines, and VectorStore clients
+│   ├── tests/          # Integration and unit test suites
+│   └── tools/          # Diagnostics and testing utilities
 ├── frontend/
-│   ├── src/            # Source TypeScript/JS/CSS assets
-│   ├── templates/      # Jinja2 templates for Admin/Chat UI
+│   ├── src/            # Client-side JavaScript, TypeScript, and CSS assets
+│   ├── templates/      # Jinja2 templates for Admin and Chat UI
 │   └── static/         # Compiled production assets
-└── specs/              # ADRs, Research, and Technical Documentation
+└── specs/              # Technical specifications, ADRs, and documentation
 ```
 
-## ⚙️ Deployment & Setup
-### 1. Prerequisites
-- Python 3.13+ installed.
-- Node.js installed for frontend build.
-- [Ollama](https://ollama.ai/) running locally for embeddings/inference.
+## Setup & Local Execution
 
-### 2. Backend Initialization
+### Prerequisites
+- Python 3.13+
+- Node.js (for frontend asset compilation)
+- [Ollama](https://ollama.ai/) running locally for local inference/embeddings
+
+### Backend Setup
+
 ```bash
 cd backend
+
+# Create and activate virtual environment
 python -m venv venv
-# Windows: venv\Scripts\activate
+
+# On Windows:
+venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
-python init_db.py  # Initialize DB
+
+# Initialize database schema
+python init_db.py
+
+# Launch API server
 python src/api/main.py
 ```
 
-### 3. Frontend Compilation
+### Frontend Build
+
 ```bash
 cd frontend
+
+# Install package dependencies
 npm install
+
+# Build static assets
 npm run build
 ```
 
-## 📈 Roadmap & Future Scope
-- [ ] Integration with GPT-4 / Claude API.
-- [ ] Real-time WebSocket-based chat.
-- [ ] Advanced User Analytics & Reporting.
+## Roadmap & Planned Enhancements
 
----
-*Built with passion by Abdul Aziz.*
+- [ ] Support for commercial LLM providers (GPT-4 / Claude APIs).
+- [ ] Real-time bidirectional communication via WebSockets.
+- [ ] Advanced support analytics and performance reporting.
