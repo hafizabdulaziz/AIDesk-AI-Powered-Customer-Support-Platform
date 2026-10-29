@@ -28,6 +28,8 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=True)
+    password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_active = Column(DateTime, default=datetime.utcnow)
     tickets = relationship("Ticket", back_populates="user")
@@ -67,7 +69,7 @@ class Message(Base):
     ticket_id = Column(String, ForeignKey("tickets.id"), nullable=False)
     sender = Column(SQLEnum(MessageSender), nullable=False)
     content = Column(Text, nullable=False)
-    image = Column(Text, nullable=True) # Added for multimodal support
+    image = Column(String, nullable=True) # Added image attachment support
     timestamp = Column(DateTime, default=datetime.utcnow)
     metadata_json = Column(Text, nullable=True) # Store RAG sources, confidence as JSON string
     ticket = relationship("Ticket", back_populates="messages")

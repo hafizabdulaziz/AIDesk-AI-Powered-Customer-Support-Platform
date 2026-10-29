@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -8,14 +9,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
-    # Database (always absolute path to backend/test.db)
+    # Database
     DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'test.db'}"
     
+    def __init__(self, **data):
+        super().__init__(**data)
+        if os.environ.get("VERCEL"):
+            self.DATABASE_URL = "sqlite:///:memory:"
+            self.CHROMA_DB_PATH = "/tmp/chroma_db"
+    
     # AI / LLM
-    OPENAI_API_KEY: str 
-    LLM_MODEL: str = "gemini-1.5-flash"
+    OPENAI_API_KEY: Optional[str] = "ollama"
+    GROQ_API_KEY: Optional[str] = None
+    LLM_MODEL: str = "llama3.2:latest"
     EMBEDDING_MODEL: str = "text-embedding-004"
-    API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    API_BASE_URL: str = "http://localhost:11434/v1"
+    GROQ_API_BASE_URL: str = "http://localhost:11434/v1"
     
     # Vector Store (always absolute path to backend/chroma_db)
     CHROMA_DB_PATH: str = str(BASE_DIR / "chroma_db")
