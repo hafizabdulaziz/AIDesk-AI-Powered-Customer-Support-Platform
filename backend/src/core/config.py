@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     def __init__(self, **data):
         super().__init__(**data)
         if os.environ.get("VERCEL"):
-            self.DATABASE_URL = "sqlite:///:memory:"
+            self.DATABASE_URL = "sqlite:////tmp/test.db"
             self.CHROMA_DB_PATH = "/tmp/chroma_db"
     
     # AI / LLM
