@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from core.config import settings
-from models.database import Base, engine
+from src.core.config import settings
+from src.models.database import Base, engine
 import os
 
 @asynccontextmanager
@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat, admin, agent, tickets, auth
+from src.api import chat, admin, agent, tickets, auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -34,6 +34,13 @@ app.add_middleware(
 )
 
 # Robust Path Setup
+# backend/src/api/main.py is at:
+# ai-customer-support-platform/backend/src/api/main.py
+# So:
+# 1. os.path.dirname -> backend/src/api/
+# 2. os.path.dirname -> backend/src/
+# 3. os.path.dirname -> backend/
+# 4. os.path.dirname -> ai-customer-support-platform/
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
@@ -53,9 +60,9 @@ app.include_router(auth.router)
 
 @app.get("/{rest_of_path:path}")
 async def serve_react(request: Request, rest_of_path: str):
-    # Agar route API ka nahi hai, toh chat.html serve karein
+    # If route is not an API route, serve the React SPA entrypoint (index.html)
     if not rest_of_path.startswith("api/"):
-        return templates.TemplateResponse(request=request, name="chat.html")
+        return templates.TemplateResponse(request=request, name="index.html")
     raise HTTPException(status_code=404, detail="Not Found")
 
 @app.get("/health")
@@ -78,5 +85,5 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="127.0.0.1", port=8001)
 
