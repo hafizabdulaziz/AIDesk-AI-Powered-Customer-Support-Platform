@@ -1,8 +1,8 @@
 import logging
-import PyPDF2
+import pypdf
 from typing import List, Dict
-from services.vector_store import vector_store
-from services.embeddings import PseudoEmbeddingService
+from src.services.vector_store import vector_store
+from src.services.embeddings import PseudoEmbeddingService
 import uuid
 
 # Setup logger
@@ -21,7 +21,7 @@ class FileProcessingService:
         text = ""
         if filename.endswith('.pdf'):
             with open(file_path, 'rb') as f:
-                reader = PyPDF2.PdfReader(f)
+                reader = pypdf.PdfReader(f)
                 for page in reader.pages:
                     text += page.extract_text()
         else:

@@ -60,9 +60,16 @@ function App() {
             body: JSON.stringify(body),
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            data = { detail: text || 'Unknown server error' };
+        }
+
         console.log("Response received:", data);
-        if (!response.ok) throw new Error(data.detail || 'Auth failed');
+        if (!response.ok) throw new Error(data.detail || data.message || 'Auth failed');
 
         if (isLoginMode) {
             localStorage.setItem('support_user_id', data.user_id);
