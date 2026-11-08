@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models.database import SessionLocal, User
+from src.models.database import SessionLocal, User
 from pydantic import BaseModel, EmailStr
 import bcrypt
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -55,7 +55,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     # Update last active
-    user.last_active = datetime.utcnow()
+    user.last_active = datetime.now(timezone.utc)
     db.commit()
     
     return {"message": "Login successful", "user_id": user.id}
