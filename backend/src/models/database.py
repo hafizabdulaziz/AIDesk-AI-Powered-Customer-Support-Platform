@@ -1,7 +1,9 @@
 from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+from sqlalchemy.pool import NullPool, QueuePool
 from datetime import datetime, timezone
 import enum
+import os
 from src.core.config import settings
 
 # Base class for models
@@ -74,6 +76,10 @@ class Message(Base):
     metadata_json = Column(Text, nullable=True) # Store RAG sources, confidence as JSON string
     ticket = relationship("Ticket", back_populates="messages")
 
-# Database Session
-engine = create_engine(settings.DATABASE_URL)
+# Database Session with serverless-compatible connection pooling
+if os.environ.get("VERCEL"):
+    engine = create_engine(settings.DATABASE_URL, poolclass=NullPool)
+else:
+    engine = create_engine(settings.DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

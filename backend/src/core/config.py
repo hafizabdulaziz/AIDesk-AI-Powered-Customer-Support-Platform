@@ -9,13 +9,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'test.db'}"
+    # Database: Support DATABASE_URL or POSTGRES_URL env var
+    DATABASE_URL: Optional[str] = None
+    POSTGRES_URL: Optional[str] = None
     
     def __init__(self, **data):
         super().__init__(**data)
+        db_url = self.DATABASE_URL or self.POSTGRES_URL or "postgresql://postgres:postgres@localhost:5432/aidesk_db"
+        
+        # Ensure compatibility with SQLAlchemy 2.0 and psycopg2-binary
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+            
+        self.DATABASE_URL = db_url
+
         if os.environ.get("VERCEL"):
-            self.DATABASE_URL = "sqlite:////tmp/test.db"
+            if not self.DATABASE_URL.startswith("postgresql") and not self.DATABASE_URL.startswith("postgres"):
+                raise ValueError(
+                    "CRITICAL PRODUCTION ERROR: DATABASE_URL or POSTGRES_URL environment variable with a PostgreSQL connection string "
+                    "(e.g., Supabase, Neon) is required on Vercel for production persistence."
+                )
             self.CHROMA_DB_PATH = "/tmp/chroma_db"
     
     # AI / LLM

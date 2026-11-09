@@ -6,11 +6,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 
-from api.dependencies import get_db
-from models.database import Ticket, Message, MessageSender, TicketStatus
-from models.schemas import MessageRead, MessageCreate
-from services.ai_agent import ai_agent
-from services.file_processor import file_processor
+from src.api.dependencies import get_db
+from src.models.database import Ticket, Message, MessageSender, TicketStatus
+from src.models.schemas import MessageRead, MessageCreate
+from src.services.ai_agent import ai_agent
+from src.services.file_processor import file_processor
 
 # Setup logger
 logger = logging.getLogger(__name__)
