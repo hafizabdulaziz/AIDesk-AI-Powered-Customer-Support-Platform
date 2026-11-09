@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 from uuid import uuid4
 
-from api.dependencies import get_db
-from models.database import Ticket, TicketStatus
-from models.schemas import TicketRead # Assuming TicketRead exists in schemas.py
+from src.api.dependencies import get_db
+from src.models.database import Ticket, TicketStatus
+from src.models.schemas import TicketRead
 
 router = APIRouter(prefix="/api/v1/tickets", tags=["tickets"])
 

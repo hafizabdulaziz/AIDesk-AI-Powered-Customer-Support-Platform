@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
-from models.database import SessionLocal, Ticket, TicketStatus
-from models.schemas import TicketRead
+from src.models.database import SessionLocal, Ticket, TicketStatus
+from src.models.schemas import TicketRead
 from uuid import UUID
 
 router = APIRouter(prefix="/api/v1/agent", tags=["agent"])

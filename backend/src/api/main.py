@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from core.config import settings
-from models.database import Base, engine
+from src.core.config import settings
+from src.models.database import Base, engine
 import os
 
 @asynccontextmanager
@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: (Optional) Clean up resources here
 
-from api import chat, admin, agent, tickets, auth
+from src.api import chat, admin, agent, tickets, auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -36,8 +36,14 @@ app.add_middleware(
 # Robust Path Setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
-TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
+DIST_DIR = os.path.join(FRONTEND_DIR, "dist")
+
+if os.path.exists(DIST_DIR):
+    STATIC_DIR = DIST_DIR
+    TEMPLATES_DIR = DIST_DIR
+else:
+    STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
+    TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -53,10 +59,10 @@ app.include_router(auth.router)
 
 @app.get("/{rest_of_path:path}")
 async def serve_react(request: Request, rest_of_path: str):
-    # Agar route API ka nahi hai, toh chat.html serve karein
-    if not rest_of_path.startswith("api/"):
-        return templates.TemplateResponse(request=request, name="chat.html")
-    raise HTTPException(status_code=404, detail="Not Found")
+    # Ensure API routes are NEVER intercepted by SPA fallback
+    if rest_of_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/health")
 async def health_check():
@@ -78,5 +84,4 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
-
+    uvicorn.run(app, host="127.0.0.1", port=8001)

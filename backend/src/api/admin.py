@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List
 import os
 import shutil
-from services.file_processor import file_processor
-from services.vector_store import vector_store
+from src.services.file_processor import file_processor
+from src.services.vector_store import vector_store
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 

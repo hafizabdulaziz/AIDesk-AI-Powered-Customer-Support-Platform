@@ -26,15 +26,15 @@ class LoginRequest(BaseModel):
 
 @router.post("/signup")
 def signup(request: SignupRequest, db: Session = Depends(get_db)):
-    # Check if user exists
+    # Check if user already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Hash password
+    # Hash password securely
     hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-    # Create user
+    # Create new user
     new_user = User(
         id=str(uuid.uuid4()),
         email=request.email,
@@ -46,15 +46,16 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "User created successfully"}
+    return {"message": "User created successfully", "user_id": new_user.id}
 
 @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
+    # Strictly authenticate existing valid account
     user = db.query(User).filter(User.email == request.email).first()
     if not user or not bcrypt.checkpw(request.password.encode('utf-8'), user.password_hash.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
-    # Update last active
+    # Update last active timestamp
     user.last_active = datetime.now(timezone.utc)
     db.commit()
     
