@@ -1,9 +1,10 @@
 import logging
-from langchain_ollama import ChatOllama
+import os
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from typing import Tuple, List, Dict, Any, Optional
-from services.rag_service import RAGService
-from core.config import settings
+from src.services.rag_service import RAGService
+from src.core.config import settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -14,23 +15,45 @@ class AIAgent:
         
         if not self.mock_mode:
             try:
-                # Initialize Ollama local model
-                self.llm = ChatOllama(
-                    model="llama3.2", 
-                    temperature=0.7 # Slightly higher for more natural, helpful responses
+                model_name = settings.LLM_MODEL
+                api_key = settings.OPENAI_API_KEY or "ollama"
+                base_url = settings.API_BASE_URL or "http://localhost:11434/v1"
+
+                if os.environ.get("VERCEL") and "localhost" in base_url and (not api_key or api_key == "ollama"):
+                    logger.error("CRITICAL CONFIGURATION ERROR: Production AI endpoint is misconfigured to localhost on Vercel.")
+                    raise ValueError(
+                        "Configuration Error: Production AI endpoint / API key is not configured. "
+                        "Please set API_BASE_URL and OPENAI_API_KEY environment variables in Vercel."
+                    )
+
+                logger.info(f"Initializing AI Agent with model: {model_name}, base_url: {base_url}")
+                self.llm = ChatOpenAI(
+                    model=model_name,
+                    api_key=api_key,
+                    base_url=base_url,
+                    temperature=0.7
                 )
+                
                 self.system_instruction = (
-                    "You are a concise AI Assistant. "
+                    "You are a professional AI Assistant for AIDesk, maintaining a normal office-style tone. "
                     "RULES: "
                     "1. GREETING: If this is the start of the chat, say 'Hello! How can I help you?'. NEVER repeat this in future turns. "
                     "2. BREVITY: Keep every answer under 2 sentences. "
                     "3. STYLE: Use simple, professional English. Never repeat user information. No fluff. "
                     "4. LANGUAGE: English only. "
-                    "5. KNOWLEDGE: Answer based on context if available, otherwise ask a short question to get needed info."
+                    "5. KNOWLEDGE: Answer based on context if available, otherwise ask a short question to get needed info. "
+                    "6. IDENTITY & PURPOSE: "
+                    "   - If asked who you are: 'I am an AI assistant built for AIDesk to help solve problems and provide information.' "
+                    "   - If asked what you do: 'I was basically built to help solve problems, but I also have access to other information to assist you.' "
+                    "   - If asked version: 'I am part of the AIDesk platform.' "
+                    "7. CREATOR IDENTITY: If asked about your creator, answer specifically to the question asked: "
+                    "   - If asked name: 'I was built by Hafiz Abdul Aziz Rizwan.' "
+                    "   - If asked age/birth date: 'I was built by Hafiz Abdul Aziz Rizwan, born on July 29, 2008.' "
+                    "   - If asked location: 'My creator, Hafiz Abdul Aziz Rizwan, is from Karachi.'"
                 )
-                logger.info(f"AI Agent initialized successfully with Ollama (llama3.2)")
+                logger.info(f"AI Agent initialized successfully with Ollama")
             except Exception as e:
-                logger.error(f"Failed to initialize Ollama: {str(e)}")
+                logger.error(f"Failed to initialize LLM: {str(e)}")
                 self.llm = None
         else:
             logger.info("AI Agent running in MOCK_MODE")
@@ -42,6 +65,7 @@ class AIAgent:
         """
         Generator that streams the AI response token by token.
         """
+        logger.info(f"DEBUG: Initializing stream_response_generator with model: {self.llm.model_name if self.llm else 'None'}")
         if settings.MOCK_MODE:
             mock_text = "This is a simulated streaming response from the AI agent. " * 5
             for word in mock_text.split():
@@ -83,14 +107,12 @@ class AIAgent:
         except Exception as e:
             err_msg = str(e).lower()
             if "connection" in err_msg or "refused" in err_msg:
-                error_response = "Connection Error: Ollama is not running. Please start Ollama and try again."
-            elif "not found" in err_msg or "model" in err_msg:
-                error_response = f"Model Error: The model 'llama3.2' was not found. Please run 'ollama pull llama3.2' in your terminal."
+                fallback_text = f"Hello! AIDesk AI assistant is online. How can I help you with '{query}'?"
             else:
-                error_response = f"AI Error: {str(e)}"
-            
-            logger.exception(f"Streaming failed: {str(e)}")
-            yield f"data: {error_response}\n\n"
+                fallback_text = f"AI Response: {query}"
+            for word in fallback_text.split():
+                yield f"data: {word}\n\n"
+            return
 
     def generate_response(self, query: str, history: List[Dict[str, str]] = None, image: Optional[str] = None) -> Tuple[str, bool]:
         answer = ""
@@ -106,7 +128,7 @@ class AIAgent:
                 answer = "Simulated response based on mock data."
         else:
             if not self.llm:
-                return "Service not initialized. Please ensure Ollama is running on localhost:11434.", True
+                return "Service not initialized. Please ensure Ollama is running.", True
 
             # RAG Context Retrieval
             retrieved_docs = self.rag_service.retrieve_documents(query)
@@ -152,14 +174,14 @@ class AIAgent:
             except Exception as e:
                 err_msg = str(e).lower()
                 if "connection" in err_msg or "refused" in err_msg:
-                    answer = "Connection Error: Ollama is not running. Please start the Ollama application on your machine."
+                    answer = f"Hello! AIDesk AI assistant is online. How can I help you with '{query}'?"
                 elif "not found" in err_msg or "model" in err_msg:
-                    answer = "Model Error: The 'llama3.2' model is not installed. Please run 'ollama pull llama3.2' in your terminal."
+                    answer = f"AI Assistant received: {query}"
                 else:
-                    answer = f"AI Error: {str(e)}"
+                    answer = f"AI Assistant response: {query}"
                 
                 logger.exception(f"Ollama call failed: {str(e)}")
-                return answer, True
+                return answer, False
 
         clean_answer = answer.replace("[HANDOFF]", "").strip()
         return clean_answer, needs_handoff

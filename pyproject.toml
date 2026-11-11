@@ -1,16 +1,35 @@
 [project]
-name = "ai-customer-support-platform"
+name = "ai-customer-support-backend"
 version = "0.1.0"
-description = "An AI-driven customer support platform with RAG capabilities."
+description = "Backend services for the AI Customer Support Platform"
 authors = [
     { name = "Hafiz Abdul Aziz", email = "abdulazizmemon888@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pydantic",
+    "pydantic-settings",
+    "langchain",
+    "langchain-openai",
+    "chromadb",
+    "openai",
+    "email-validator",
+    "jinja2",
+    "pypdf2",
+    "python-multipart",
+]
 
 [build-system]
-requires = ["uv_build>=0.11.18,<0.12.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "backend/src"}
+packages = ["api", "core", "models", "services"]
 
 [dependency-groups]
 dev = [
@@ -19,4 +38,6 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 88
+
+[tool.vercel]
+entrypoint = "backend.api.index:app"

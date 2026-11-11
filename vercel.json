@@ -4,7 +4,8 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "backend/api/index.py": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "frontend/dist/**"
     }
   },
   "rewrites": [

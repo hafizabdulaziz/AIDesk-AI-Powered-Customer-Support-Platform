@@ -33,40 +33,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Robust Path Setup
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-DIST_DIR = os.path.join(FRONTEND_DIR, "dist")
-
-if os.path.exists(DIST_DIR):
-    STATIC_DIR = DIST_DIR
-    TEMPLATES_DIR = DIST_DIR
-else:
-    STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
-    TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
-
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
-
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(agent.router)
 app.include_router(tickets.router)
 app.include_router(auth.router)
 
-# --- Frontend Routes ---
-
-@app.get("/{rest_of_path:path}")
-async def serve_react(request: Request, rest_of_path: str):
-    # Ensure API routes are NEVER intercepted by SPA fallback
-    if rest_of_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="Not Found")
-    return templates.TemplateResponse(request=request, name="index.html")
-
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "app": settings.APP_NAME}
+
+# Robust Path Setup for Frontend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+DIST_DIR = os.path.join(FRONTEND_DIR, "dist")
+
+if os.path.exists(DIST_DIR):
+    # Mount frontend dist at root (serves index.html, assets, JS, CSS with correct MIME types automatically)
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend-dist")
+else:
+    @app.get("/{rest_of_path:path}")
+    async def serve_react_missing(request: Request, rest_of_path: str):
+        if rest_of_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        raise HTTPException(
+            status_code=500, 
+            detail="Frontend build output (dist) not found. Please ensure frontend is built during deployment."
+        )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

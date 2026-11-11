@@ -1,5 +1,7 @@
 # AIDesk: Professional AI-Powered Customer Support Platform
 
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/hafizabdulaziz/AIDesk-AI-Powered-Customer-Support-Platform)
+
 [![Agentic AI](https://img.shields.io/badge/Course-Agentic%20AI-blue)]()
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-green)]()
 [![Frontend](https://img.shields.io/badge/Frontend-TailwindCSS-orange)]()

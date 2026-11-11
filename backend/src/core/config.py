@@ -15,12 +15,14 @@ class Settings(BaseSettings):
     
     def __init__(self, **data):
         super().__init__(**data)
-        db_url = self.DATABASE_URL or self.POSTGRES_URL or "postgresql://postgres:postgres@localhost:5432/aidesk_db"
-        
+        db_url = self.DATABASE_URL or self.POSTGRES_URL
+        if not db_url:
+            db_url = f"sqlite:///{BASE_DIR / 'test.db'}"
+
         # Ensure compatibility with SQLAlchemy 2.0 and psycopg2-binary
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
-            
+
         self.DATABASE_URL = db_url
 
         if os.environ.get("VERCEL"):
